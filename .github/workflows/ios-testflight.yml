@@ -40,19 +40,20 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install CocoaPods
-        run: |
-          gem install cocoapods
-          cd ios
-          pod install --repo-update
-
       - name: Install Flutter packages
         run: |
+          flutter pub get
           cd ../../packages/taxigo_core
           flutter pub get
           flutter gen-l10n
           cd ../../apps/passenger
           flutter pub get
+
+      - name: Install CocoaPods
+        run: |
+          gem install cocoapods
+          cd ios
+          pod install --repo-update
 
       - name: Write App Store Connect API key
         env:
