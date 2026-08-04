@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>728811081033-2d1rvnk8f99aomspm0nbu3khon8v81p1.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.728811081033-2d1rvnk8f99aomspm0nbu3khon8v81p1</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>728811081033-v56p5iube40fse1gf22i66cagklkgve6.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyDr32dVV_5dXDI09l559XaDIIdwzK5YRsI</string>
+	<key>GCM_SENDER_ID</key>
+	<string>728811081033</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.erhancinar.taxigo</string>
+	<key>PROJECT_ID</key>
+	<string>taxigo-e7b4b</string>
+	<key>STORAGE_BUCKET</key>
+	<string>taxigo-e7b4b.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:728811081033:ios:a9bbd3a01c41ee05bade98</string>
+	<key>DATABASE_URL</key>
+	<string>https://taxigo-e7b4b-default-rtdb.firebaseio.com</string>
+</dict>
+</plist>

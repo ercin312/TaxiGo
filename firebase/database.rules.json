@@ -1,0 +1,27 @@
+{
+  "rules": {
+    "drivers": {
+      "$driverId": {
+        ".read": "auth != null",
+        "location": {
+          ".write": "auth != null && auth.uid == $driverId"
+        },
+        "is_online": {
+          ".write": "auth != null && auth.uid == $driverId"
+        }
+      }
+    },
+    "rides": {
+      "$rideId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "ride_requests": {
+      "$driverId": {
+        ".read": "auth != null && auth.uid == $driverId",
+        ".write": "auth != null"
+      }
+    }
+  }
+}

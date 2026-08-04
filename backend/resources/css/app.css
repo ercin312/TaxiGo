@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../js/**/*.vue';
+
+@theme {
+    --font-sans: 'Sora', 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    --color-taxi-ink: #0b1220;
+    --color-taxi-accent: #f5b400;
+    --color-taxi-mist: #f3f1ec;
+}

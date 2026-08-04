@@ -1,0 +1,106 @@
+name: iOS TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Override build number (optional, empty = github.run_number)"
+        required: false
+        default: ""
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    runs-on: macos-15
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: apps/passenger
+
+    env:
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+      TAXIGO_API_BASE_URL: ${{ vars.TAXIGO_API_BASE_URL || 'https://api.taxigo.app/api/v1' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install CocoaPods
+        run: |
+          gem install cocoapods
+          cd ios
+          pod install --repo-update
+
+      - name: Install Flutter packages
+        run: |
+          cd ../../packages/taxigo_core
+          flutter pub get
+          flutter gen-l10n
+          cd ../../apps/passenger
+          flutter pub get
+
+      - name: Write App Store Connect API key
+        env:
+          ASC_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          if [ -z "$ASC_KEY" ] || [ -z "$APP_STORE_CONNECT_KEY_ID" ] || [ -z "$APP_STORE_CONNECT_ISSUER_ID" ]; then
+            echo "Missing App Store Connect API secrets. See apps/passenger/docs/TESTFLIGHT_GITHUB.md"
+            exit 1
+          fi
+          mkdir -p "$HOME/private_keys"
+          # Secret may be raw .p8 contents or base64
+          if echo "$ASC_KEY" | grep -q "BEGIN PRIVATE KEY"; then
+            printf '%s\n' "$ASC_KEY" > "$HOME/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          else
+            echo "$ASC_KEY" | base64 --decode > "$HOME/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          fi
+          chmod 600 "$HOME/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+
+      - name: Resolve build number
+        id: meta
+        run: |
+          BN="${{ github.event.inputs.build_number }}"
+          if [ -z "$BN" ]; then BN="${{ github.run_number }}"; fi
+          echo "build_number=$BN" >> "$GITHUB_OUTPUT"
+          echo "Using CFBundleVersion=$BN"
+
+      - name: Build IPA
+        env:
+          BUILD_NUMBER: ${{ steps.meta.outputs.build_number }}
+        run: |
+          flutter build ipa --release \
+            --build-number="$BUILD_NUMBER" \
+            --export-options-plist=ios/ExportOptions.plist \
+            --dart-define=TAXIGO_API_BASE_URL="${TAXIGO_API_BASE_URL}"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: taxigo-ios-ipa
+          path: apps/passenger/build/ios/ipa/*.ipa
+          retention-days: 14
+
+      - name: Upload to TestFlight
+        run: |
+          IPA=$(ls build/ios/ipa/*.ipa | head -n 1)
+          echo "Uploading $IPA"
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA" \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"

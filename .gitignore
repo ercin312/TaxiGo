@@ -1,0 +1,45 @@
+# Dependencies
+**/node_modules/
+**/vendor/
+composer.phar
+
+# Build / cache
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/build/
+**/dist/
+backend/public/build/
+backend/storage/*.key
+backend/bootstrap/cache/*.php
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Firebase Admin / server credentials only (client configs are committed)
+**/firebase-service-account.json
+backend/storage/app/firebase-service-account.json
+
+# Client Firebase configs (needed for CI / Flutter builds) — DO commit:
+# apps/passenger/android/app/google-services.json
+# apps/passenger/ios/Runner/GoogleService-Info.plist
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+backend/database/*.sqlite
+
+# Logs
+*.log
+
+# Reference assets (large, copied from reference)
+assets_reference/

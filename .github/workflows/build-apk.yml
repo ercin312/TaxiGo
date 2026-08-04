@@ -1,0 +1,50 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/passenger
+
+    env:
+      TAXIGO_API_BASE_URL: ${{ vars.TAXIGO_API_BASE_URL || 'http://10.0.2.2:8000/api/v1' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: |
+          cd ../../packages/taxigo_core
+          flutter pub get
+          flutter gen-l10n
+          cd ../../apps/passenger
+          flutter pub get
+
+      - name: Analyze
+        run: flutter analyze lib
+
+      - name: Build release APK
+        run: |
+          flutter build apk --release \
+            --dart-define=TAXIGO_API_BASE_URL=${TAXIGO_API_BASE_URL}
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: taxigo-apk
+          path: apps/passenger/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14

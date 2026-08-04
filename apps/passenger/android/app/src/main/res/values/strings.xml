@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Web client ID (oauth_client client_type 3) from Firebase google-services.json -->
+    <string name="default_web_client_id" translatable="false">728811081033-qg42felr8cvkf5nqa37rim4p1b5dggmf.apps.googleusercontent.com</string>
+</resources>

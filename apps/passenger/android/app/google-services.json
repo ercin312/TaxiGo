@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "728811081033",
+    "firebase_url": "https://taxigo-e7b4b-default-rtdb.firebaseio.com",
+    "project_id": "taxigo-e7b4b",
+    "storage_bucket": "taxigo-e7b4b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:728811081033:android:f5f0f0e02b3d6b51bade98",
+        "android_client_info": {
+          "package_name": "com.taxigo.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "728811081033-v56p5iube40fse1gf22i66cagklkgve6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.taxigo.app",
+            "certificate_hash": "d15c9a02ffddd7a430986b3f95ea4f12fea6e917"
+          }
+        },
+        {
+          "client_id": "728811081033-qg42felr8cvkf5nqa37rim4p1b5dggmf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBO3xY5spGJvVnTLP1B-GswxWbv2NFCb3M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "728811081033-qg42felr8cvkf5nqa37rim4p1b5dggmf.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "728811081033-is8lbs5iuo7q8h47dtbjr1q02550fqn1.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.taxigo.taxigoPassenger"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

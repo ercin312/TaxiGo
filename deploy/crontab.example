@@ -1,0 +1,6 @@
+# Linux/macOS cron example for TaxiGo
+# crontab -e
+# * * * * * cd /path/to/TaxiGo/backend && php artisan schedule:run >> /dev/null 2>&1
+
+# Or keep a long-running worker in staging:
+# php artisan schedule:work
