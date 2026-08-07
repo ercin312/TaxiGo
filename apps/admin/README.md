@@ -16,9 +16,20 @@ flutter run -d windows
 ```
 
 Giriş: `admin@taxigo.app` / `password`  
-API: `http://127.0.0.1:8000/api/v1`
+API: `http://127.0.0.1:8000/api/v1` (giriş ekranından değiştirilebilir)
 
-## Release
+## Setup (kurulum dosyası)
+
+```powershell
+cd C:\Users\excalibur\Desktop\TaxiGo\apps\admin
+.\windows\installer\build_setup.ps1
+# Üretim API ile:
+.\windows\installer\build_setup.ps1 -ApiBase "https://api.taxigo.app/api/v1"
+```
+
+Çıktı: `dist\windows\TaxiGo-Admin-Setup-1.0.0.exe`
+
+## Release (yalnızca exe)
 
 ```powershell
 cd C:\Users\excalibur\Desktop\TaxiGo\apps\admin

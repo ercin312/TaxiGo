@@ -19,7 +19,11 @@ class AdminApi {
   bool isSuperAdmin = false;
 
   String get baseUrl {
-    final raw = _prefs.getString(_baseKey) ?? 'http://127.0.0.1:8000/api/v1';
+    final raw = _prefs.getString(_baseKey) ??
+        const String.fromEnvironment(
+          'TAXIGO_ADMIN_API_BASE',
+          defaultValue: 'http://127.0.0.1:8000/api/v1',
+        );
     return _normalizeBase(raw);
   }
 

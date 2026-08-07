@@ -29,8 +29,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _base = TextEditingController(text: widget.api.baseUrl);
-    _email = TextEditingController(text: 'admin@taxigo.app');
-    _password = TextEditingController(text: 'password');
+    _email = TextEditingController();
+    _password = TextEditingController();
   }
 
   @override
@@ -39,6 +39,21 @@ class _LoginScreenState extends State<LoginScreen> {
     _email.dispose();
     _password.dispose();
     super.dispose();
+  }
+
+  String _friendlyError(Object e) {
+    final raw = e.toString();
+    if (raw.contains('SocketException') ||
+        raw.contains('Connection refused') ||
+        raw.contains('ağ bağlantısını reddetti') ||
+        raw.contains('Failed host lookup') ||
+        raw.contains('ClientException')) {
+      return 'API’ye bağlanılamadı.\n'
+          'Backend çalışıyor mu? Örnek:\n'
+          'cd backend → php artisan serve\n'
+          'Adres: ${_base.text.trim()}';
+    }
+    return raw;
   }
 
   Future<void> _submit() async {
@@ -54,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       widget.onSuccess();
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = _friendlyError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -69,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF14161D), Color(0xFF2A2F3D), Color(0xFF1A1D26)],
+            colors: [Color(0xFF0B0B0D), Color(0xFF1A1A1F), Color(0xFF121214)],
           ),
         ),
         child: Center(
@@ -82,16 +97,30 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Image.asset(
+                          'assets/images/taxigo_logo.png',
+                          width: 112,
+                          height: 112,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     Text(
-                      'TaxiGo',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      'TaxiGo Admin',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.w800,
-                            letterSpacing: -0.6,
+                            letterSpacing: -0.4,
                           ),
                     ),
                     Text(
-                      'Windows Admin',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      'Windows yönetim paneli',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             color: AdminTheme.muted,
                           ),
                     ),
@@ -130,7 +159,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 12),
                       Text(
                         _error!,
-                        style: const TextStyle(color: Colors.redAccent),
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          height: 1.35,
+                        ),
                       ),
                     ],
                     const SizedBox(height: 18),
@@ -151,8 +183,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         Clipboard.setData(
                           const ClipboardData(text: 'admin@taxigo.app'),
                         );
+                        _email.text = 'admin@taxigo.app';
+                        _password.text = 'password';
                       },
-                      child: const Text('E-postayı kopyala'),
+                      child: const Text('Demo bilgilerini doldur'),
                     ),
                   ],
                 ),

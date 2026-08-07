@@ -377,7 +377,12 @@ class RideRepositoryImpl implements RideRepository {
   @override
   Future<Either<String, String>> shareTrip(int rideId) async {
     if (await _isLocal) {
-      return Right('https://taxigo.app/shared/trip/DEMO-$rideId');
+      final ride = _demo.getRide(rideId);
+      final reference = ride?.reference ?? 'DEMO-$rideId';
+      final token = 'local-${rideId.toRadixString(16)}';
+      return Right(
+        'https://taxigo.app/shared/trip/$reference?token=$token',
+      );
     }
     try {
       final response = await _apiClient.post<Map<String, dynamic>>(
@@ -385,7 +390,9 @@ class RideRepositoryImpl implements RideRepository {
       );
       final data = response.data;
       final url = data?['share_url']?.toString() ?? data?['url']?.toString();
-      if (url == null) return const Left('No share URL returned');
+      if (url == null || url.isEmpty) {
+        return const Left('Paylaşım linki alınamadı');
+      }
       return Right(url);
     } on ApiException catch (e) {
       return Left(e.message);

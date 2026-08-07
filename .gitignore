@@ -43,3 +43,6 @@ backend/database/*.sqlite
 
 # Reference assets (large, copied from reference)
 assets_reference/
+
+# Windows installers
+apps/admin/dist/

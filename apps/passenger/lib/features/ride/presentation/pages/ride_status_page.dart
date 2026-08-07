@@ -641,6 +641,10 @@ class _RideStatusPanel extends StatelessWidget {
                 ),
               ),
             ],
+            if (ride != null && (isApproach || isTrip)) ...[
+              const SizedBox(height: 12),
+              ShareTripButton(rideId: ride!.id, compact: false),
+            ],
             const SizedBox(height: 12),
             if (status == RideStatus.pending ||
                 status == RideStatus.driverAssigned ||
