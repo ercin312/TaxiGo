@@ -5,6 +5,12 @@ abstract final class AppConstants {
     defaultValue: 'https://api.taxigo.app/api/v1',
   );
 
+  /// Offline demo / fake fleet / auto-match. Store builds must keep this false.
+  static const bool allowDemoMode = bool.fromEnvironment(
+    'TAXIGO_ALLOW_DEMO',
+    defaultValue: false,
+  );
+
   static const String appName = 'TaxiGo';
   static const String defaultLocale = 'tr';
   static const String currency = 'TRY';

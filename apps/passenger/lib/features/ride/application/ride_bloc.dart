@@ -306,6 +306,7 @@ class RideBloc extends Bloc<RideEvent, RideState> {
     RideApproachCompleted event,
     Emitter<RideState> emit,
   ) async {
+    if (!AppConstants.allowDemoMode) return;
     final rideId = state.activeRideId;
     if (rideId == null) return;
     try {
@@ -330,14 +331,13 @@ class RideBloc extends Bloc<RideEvent, RideState> {
     RideTripAnimationCompleted event,
     Emitter<RideState> emit,
   ) async {
+    if (!AppConstants.allowDemoMode) return;
     final rideId = state.activeRideId;
     if (rideId == null) return;
 
     try {
       LocalDemoStore.instance.advance(rideId, RideStatus.completed);
-    } catch (_) {
-      // Non-demo ride: leave completion to backend / driver.
-    }
+    } catch (_) {}
 
     emit(state.copyWith(
       status: RideBlocStatus.completed,

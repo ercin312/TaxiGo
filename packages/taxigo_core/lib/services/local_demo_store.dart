@@ -4,6 +4,7 @@ import 'dart:ui' show Offset;
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../core/constants/app_constants.dart';
 import '../domain/enums/driver_approval_status.dart';
 import '../domain/enums/payment_method.dart';
 import '../domain/enums/ride_status.dart';
@@ -12,7 +13,7 @@ import '../domain/models/fare_estimate_model.dart';
 import '../domain/models/ride_model.dart';
 import '../domain/models/user_model.dart';
 
-/// In-app demo data so the phone works without a PC/backend.
+/// In-app demo data (debug / TAXIGO_ALLOW_DEMO only).
 class LocalDemoStore {
   LocalDemoStore._();
   static final LocalDemoStore instance = LocalDemoStore._();
@@ -354,27 +355,28 @@ class LocalDemoStore {
     );
     _activePassengerRide = ride;
     _pendingOffer = ride;
-    // Auto-match a virtual taxi shortly after request (single-phone demo).
-    Future<void>.delayed(const Duration(seconds: 2), () {
-      if (_activePassengerRide?.id != ride.id) return;
-      if (_activePassengerRide?.status != RideStatus.pending) return;
-      _activePassengerRide = ride.copyWith(
-        status: RideStatus.driverAssigned,
-        driverId: 7101,
-        driverAssignedAt: DateTime.now(),
-        finalFare: fare,
-        driverName: 'TaxiGo Sürücü',
-        vehiclePlate: '34 TG 100',
-      );
-    });
-    Future<void>.delayed(const Duration(seconds: 3), () {
-      if (_activePassengerRide?.id != ride.id) return;
-      if (_activePassengerRide?.status != RideStatus.driverAssigned) return;
-      _activePassengerRide = _activePassengerRide!.copyWith(
-        status: RideStatus.driverArriving,
-      );
-    });
-    // inProgress starts only after passenger sees the taxi arrive (UI triggers).
+    // Auto-match only in explicit demo builds — never in App Store.
+    if (AppConstants.allowDemoMode) {
+      Future<void>.delayed(const Duration(seconds: 2), () {
+        if (_activePassengerRide?.id != ride.id) return;
+        if (_activePassengerRide?.status != RideStatus.pending) return;
+        _activePassengerRide = ride.copyWith(
+          status: RideStatus.driverAssigned,
+          driverId: 7101,
+          driverAssignedAt: DateTime.now(),
+          finalFare: fare,
+          driverName: 'TaxiGo Sürücü',
+          vehiclePlate: '34 TG 100',
+        );
+      });
+      Future<void>.delayed(const Duration(seconds: 3), () {
+        if (_activePassengerRide?.id != ride.id) return;
+        if (_activePassengerRide?.status != RideStatus.driverAssigned) return;
+        _activePassengerRide = _activePassengerRide!.copyWith(
+          status: RideStatus.driverArriving,
+        );
+      });
+    }
     return ride;
   }
 
@@ -396,8 +398,10 @@ class LocalDemoStore {
     if (pending != null && pending.status == RideStatus.pending) {
       return [pending];
     }
-    // Always offer a sample request while online so driver mode is visible.
-    return [_sampleIncomingRide()];
+    if (AppConstants.allowDemoMode) {
+      return [_sampleIncomingRide()];
+    }
+    return const [];
   }
 
   RideModel _sampleIncomingRide() {

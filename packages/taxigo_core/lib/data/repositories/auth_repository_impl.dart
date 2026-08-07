@@ -101,7 +101,11 @@ class AuthRepositoryImpl implements AuthRepository {
     String? deviceId,
     String? locale,
   }) {
-    // Always local — no PC / backend required to enter the app.
+    if (!AppConstants.allowDemoMode) {
+      return Future.value(
+        const Left('Demo giriş kapalı. Lütfen OTP veya sosyal giriş kullanın.'),
+      );
+    }
     return localLogin(phone: phone, name: name, role: role, locale: locale);
   }
 
@@ -112,6 +116,11 @@ class AuthRepositoryImpl implements AuthRepository {
     String role = 'passenger',
     String? locale,
   }) async {
+    if (!AppConstants.allowDemoMode) {
+      return const Left(
+        'Çevrimdışı giriş kapalı. Sunucuya bağlanıp OTP ile giriş yapın.',
+      );
+    }
     final normalizedPhone = phone.trim();
     final displayName = (name != null && name.trim().isNotEmpty)
         ? name.trim()
@@ -217,7 +226,12 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       return await remote.fold(
-        (_) async => _localSessionFromSocial(social, role: role, locale: locale),
+        (error) async {
+          if (!AppConstants.allowDemoMode) {
+            return Left(error);
+          }
+          return _localSessionFromSocial(social, role: role, locale: locale);
+        },
         (session) async => Right(session),
       );
     } on SocialAuthCancelled {

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../admin_theme.dart';
 import '../api/admin_api.dart';
@@ -169,24 +168,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     FilledButton(
                       onPressed: _busy ? null : _submit,
                       child: Text(_busy ? 'Giriş yapılıyor…' : 'Giriş yap'),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Demo: admin@taxigo.app / password',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AdminTheme.muted,
-                          ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Clipboard.setData(
-                          const ClipboardData(text: 'admin@taxigo.app'),
-                        );
-                        _email.text = 'admin@taxigo.app';
-                        _password.text = 'password';
-                      },
-                      child: const Text('Demo bilgilerini doldur'),
                     ),
                   ],
                 ),

@@ -115,7 +115,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         _feed = nearbyDriversFeed ??
             NearbyDriversCoordinator(
               mapsService: mapsService,
-              allowDemoFallback: true,
+              allowDemoFallback: AppConstants.allowDemoMode,
             ),
         super(const HomeState()) {
     on<HomeStarted>(_onStarted);

@@ -16,8 +16,8 @@ class FeatureModulesService {
   bool enabled(String key, {bool fallback = true}) =>
       _flags[key] ?? fallback;
 
-  bool get otpLogin => enabled('otp_login', fallback: false);
-  bool get demoLogin => enabled('demo_login', fallback: true);
+  bool get otpLogin => enabled('otp_login', fallback: true);
+  bool get demoLogin => enabled('demo_login', fallback: false);
   bool get directionsFare => enabled('directions_fare');
   bool get placesAutocomplete => enabled('places_autocomplete');
   bool get rideSettlement => enabled('ride_settlement');

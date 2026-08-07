@@ -104,6 +104,7 @@ GoRouter createAppRouter(AuthBloc authBloc) {
             name: map['name']?.toString(),
             channel: map['channel']?.toString(),
             debugCode: map['debugCode']?.toString(),
+            role: map['role']?.toString() ?? 'passenger',
           );
         },
       ),

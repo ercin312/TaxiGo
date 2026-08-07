@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:taxigo_core/taxigo_core.dart';
@@ -136,6 +137,24 @@ class _RideStatusViewState extends State<_RideStatusView>
   }
 
   Future<void> _onRideUpdated(RideModel ride) async {
+    // Production: status-driven UI + live driver GPS — never auto-complete.
+    if (!AppConstants.allowDemoMode) {
+      final nextPhase = _isTrip(ride.status)
+          ? _TrackPhase.trip
+          : _isApproach(ride.status)
+              ? _TrackPhase.approach
+              : ride.status == RideStatus.completed
+                  ? _TrackPhase.done
+                  : _TrackPhase.waiting;
+      if (_phase != nextPhase) {
+        setState(() => _phase = nextPhase);
+      }
+      if (_isApproach(ride.status) || _isTrip(ride.status)) {
+        await _ensureLiveRoute(ride);
+      }
+      return;
+    }
+
     if (_isApproach(ride.status) && !_approachStarted) {
       await _startApproach(ride);
       return;
@@ -143,6 +162,68 @@ class _RideStatusViewState extends State<_RideStatusView>
     if (_isTrip(ride.status) && !_tripStarted) {
       await _startTrip(ride);
     }
+  }
+
+  /// Production route line (pickup → dropoff or driver → pickup). No fake motion.
+  Future<void> _ensureLiveRoute(RideModel ride) async {
+    final pickup = LatLng(ride.pickupLatitude, ride.pickupLongitude);
+    final dropoff = LatLng(ride.dropoffLatitude, ride.dropoffLongitude);
+    final origin = _taxiPosition ?? pickup;
+    final destination = _isTrip(ride.status) ? dropoff : pickup;
+
+    if (_routePoints.length >= 2 && _tripStarted == _isTrip(ride.status)) {
+      return;
+    }
+    if (_isTrip(ride.status)) {
+      _tripStarted = true;
+      _approachStarted = true;
+    } else {
+      _approachStarted = true;
+    }
+
+    final result = await passengerGetIt<MapsService>().getDirections(
+      originLat: origin.latitude,
+      originLng: origin.longitude,
+      destinationLat: destination.latitude,
+      destinationLng: destination.longitude,
+    );
+    if (!mounted) return;
+    final points = result.fold(
+      (_) => [origin, destination],
+      (d) => d.points.length >= 2 ? d.points : [origin, destination],
+    );
+    setState(() {
+      _routePoints = points;
+      _denseRoute = RouteGeometry.densify(points, stepMeters: 12);
+      _routeIndex = 0;
+      _progress = 0;
+    });
+    await _fitBounds(points);
+  }
+
+  void _applyDriverLocation(RideLocationModel location) {
+    final pos = LatLng(location.latitude, location.longitude);
+    setState(() {
+      _taxiPosition = pos;
+      if (location.heading != null) {
+        _taxiHeading = location.heading!;
+      }
+      if (_denseRoute.length >= 2) {
+        // Approximate progress along remaining path.
+        final end = _denseRoute.last;
+        final total = RouteGeometry.pathLengthMeters(_denseRoute);
+        if (total > 1) {
+          final rem = Geolocator.distanceBetween(
+            pos.latitude,
+            pos.longitude,
+            end.latitude,
+            end.longitude,
+          );
+          _progress = (1 - (rem / total)).clamp(0.0, 1.0);
+        }
+      }
+    });
+    unawaited(_followCamera(pos, _taxiHeading));
   }
 
   /// Matched taxi moves from a nearby road point → passenger pickup only.
@@ -294,6 +375,10 @@ class _RideStatusViewState extends State<_RideStatusView>
           context.go('/home');
         } else if (state.ride != null) {
           _onRideUpdated(state.ride!);
+        }
+        final loc = state.driverLocation;
+        if (loc != null && !AppConstants.allowDemoMode) {
+          _applyDriverLocation(loc);
         }
       },
       builder: (context, state) {

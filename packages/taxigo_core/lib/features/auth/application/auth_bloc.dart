@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../domain/models/user_model.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/repositories/user_repository.dart';
@@ -201,6 +202,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
 
     if (_authRepository.isLocalToken(token)) {
+      if (!AppConstants.allowDemoMode) {
+        await _authRepository.clearToken();
+        emit(state.copyWith(
+          status: AuthStatus.unauthenticated,
+          clearUser: true,
+        ));
+        return;
+      }
       final localUser = await _authRepository.getStoredLocalUser();
       if (localUser == null) {
         await _authRepository.clearToken();
@@ -319,6 +328,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthDemoLoginRequested event,
     Emitter<AuthState> emit,
   ) async {
+    if (!AppConstants.allowDemoMode) {
+      emit(state.copyWith(
+        status: AuthStatus.failure,
+        errorMessage:
+            'Demo giriş kapalı. Telefonunuza gelen kod ile giriş yapın.',
+      ));
+      return;
+    }
     emit(state.copyWith(
       status: AuthStatus.loading,
       clearError: true,
@@ -332,7 +349,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       LocalDemoStore.instance.clearDemoSession();
     }
 
-    // Instant device-local session — never waits on network / FCM / PC.
     final result = await _authRepository.localLogin(
       phone: event.phoneNumber,
       name: event.name,

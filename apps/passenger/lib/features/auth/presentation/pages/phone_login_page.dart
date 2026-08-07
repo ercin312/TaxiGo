@@ -7,7 +7,7 @@ import 'package:taxigo_core/taxigo_core.dart';
 import '../../../../app/router.dart';
 import '../../../../core/app_helpers.dart';
 
-/// Login — name/phone form + Google / Apple social.
+/// Production login — Google / Apple / phone OTP (no offline demo session).
 class PhoneLoginPage extends StatefulWidget {
   const PhoneLoginPage({super.key});
 
@@ -32,7 +32,7 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
     super.dispose();
   }
 
-  void _login(BuildContext context) {
+  void _requestOtp(BuildContext context) {
     final phone = _phoneController.text.trim();
     final name = _nameController.text.trim();
     if (phone.length < 8) {
@@ -48,7 +48,7 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
       return;
     }
     context.read<AuthBloc>().add(
-          AuthDemoLoginRequested(
+          AuthOtpRequested(
             phoneNumber: phone,
             name: name,
             role: _role,
@@ -68,6 +68,17 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
 
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
+        if (state.status == AuthStatus.otpSent) {
+          context.push('/otp', extra: {
+            'phone': state.phoneNumber ?? _phoneController.text.trim(),
+            'name': state.name ?? _nameController.text.trim(),
+            'channel': state.otpChannel,
+            if (kDebugMode && AppConstants.allowDemoMode)
+              'debugCode': state.otpDebugCode,
+            'role': _role,
+          });
+          return;
+        }
         if (state.status == AuthStatus.authenticated) {
           if (!isProfileComplete(state.user)) {
             context.go('/profile-setup');
@@ -75,7 +86,6 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
           }
           final isDriver = state.user?.role == 'driver';
           if (isDriver) {
-            // KYC gate — never open driver home until approved.
             context.go('/driver/register');
             return;
           }
@@ -93,7 +103,8 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
         final loading = state.status == AuthStatus.loading;
         return AuthScaffold(
           title: 'Giriş Yap',
-          subtitle: 'Google veya Apple ile devam edin; ya da ad ve telefon ile giriş yapın.',
+          subtitle:
+              'Google veya Apple ile devam edin; ya da telefonunuza gelen kod ile giriş yapın.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -148,7 +159,7 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _login(context),
+                onSubmitted: (_) => _requestOtp(context),
                 decoration: InputDecoration(
                   labelText: l10n.phoneNumber,
                   prefixIcon: const Icon(Icons.phone_outlined),
@@ -164,7 +175,7 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
                   ),
                   ButtonSegment(
                     value: 'driver',
-                    label: Text('Sürücü'),
+                    label: Text('Taksi'),
                     icon: Icon(Icons.local_taxi),
                   ),
                 ],
@@ -175,10 +186,10 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
               ),
               const SizedBox(height: 24),
               PrimaryButton(
-                label: 'Giriş Yap',
-                icon: Icons.arrow_forward_rounded,
+                label: l10n.sendOtp,
+                icon: Icons.sms_outlined,
                 isLoading: loading,
-                onPressed: () => _login(context),
+                onPressed: () => _requestOtp(context),
               ),
             ],
           ),

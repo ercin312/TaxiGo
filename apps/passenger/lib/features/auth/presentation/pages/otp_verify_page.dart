@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +14,7 @@ class OtpVerifyPage extends StatefulWidget {
     this.name,
     this.channel,
     this.debugCode,
+    this.role = 'passenger',
     super.key,
   });
 
@@ -20,6 +22,7 @@ class OtpVerifyPage extends StatefulWidget {
   final String? name;
   final String? channel;
   final String? debugCode;
+  final String role;
 
   @override
   State<OtpVerifyPage> createState() => _OtpVerifyPageState();
@@ -37,11 +40,16 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
         if (state.status == AuthStatus.authenticated) {
           if (!isProfileComplete(state.user)) {
             context.go('/profile-setup');
-          } else {
-            resolveHomeRoute().then((route) {
-              if (context.mounted) context.go(route);
-            });
+            return;
           }
+          final isDriver = state.user?.role == 'driver';
+          if (isDriver) {
+            context.go('/driver/register');
+            return;
+          }
+          resolveHomeRoute().then((route) {
+            if (context.mounted) context.go(route);
+          });
         } else if (state.status == AuthStatus.failure &&
             state.errorMessage != null) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -50,8 +58,10 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
         }
       },
       builder: (context, state) {
-        final channel = widget.channel ?? state.otpChannel ?? 'whatsapp';
+        final channel = widget.channel ?? state.otpChannel ?? 'sms';
         final debug = widget.debugCode ?? state.otpDebugCode;
+        final showDebug =
+            kDebugMode && AppConstants.allowDemoMode && debug != null;
 
         return AuthScaffold(
           title: l10n.verifyOtpTitle,
@@ -69,7 +79,7 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
                 'Kanal: $channel',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
-              if (debug != null) ...[
+              if (showDebug) ...[
                 const SizedBox(height: 8),
                 Text(
                   'Geliştirme kodu: $debug',
@@ -118,10 +128,11 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
                               AuthOtpRequested(
                                 phoneNumber: widget.phone,
                                 name: widget.name,
+                                role: widget.role,
                               ),
                             );
                       },
-                child: const Text('Kodu tekrar gönder'),
+                child: Text(l10n.resendOtp),
               ),
             ],
           ),
@@ -137,6 +148,7 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
             phoneNumber: widget.phone,
             code: _code,
             name: widget.name,
+            role: widget.role,
           ),
         );
   }
