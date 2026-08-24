@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -375,27 +378,42 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(state.copyWith(status: AuthStatus.loading, clearError: true));
     LocalDemoStore.instance.clearDemoSession();
 
-    final payload = await _deviceRegistrationService.registrationPayload();
-    final result = await _authRepository.socialLogin(
-      provider: event.provider,
-      role: event.role,
-      fcmToken: payload['fcm_token'],
-    );
+    try {
+      final result = await _authRepository
+          .socialLogin(
+            provider: event.provider,
+            role: event.role,
+          )
+          .timeout(
+            const Duration(seconds: 90),
+            onTimeout: () => const Left(
+              'Giriş zaman aşımına uğradı. İnternet bağlantınızı kontrol edip tekrar deneyin.',
+            ),
+          );
 
-    await result.fold(
-      (error) async => emit(state.copyWith(
+      await result.fold(
+        (error) async => emit(state.copyWith(
+          status: AuthStatus.failure,
+          errorMessage: error,
+        )),
+        (session) async {
+          await FirebaseService.signInWithCustomToken(
+            session.firebaseCustomToken,
+          );
+          emit(state.copyWith(
+            status: AuthStatus.authenticated,
+            user: session.user,
+            token: session.token,
+          ));
+          unawaited(_deviceRegistrationService.register());
+        },
+      );
+    } catch (e) {
+      emit(state.copyWith(
         status: AuthStatus.failure,
-        errorMessage: error,
-      )),
-      (session) async {
-        await FirebaseService.signInWithCustomToken(session.firebaseCustomToken);
-        emit(state.copyWith(
-          status: AuthStatus.authenticated,
-          user: session.user,
-          token: session.token,
-        ));
-      },
-    );
+        errorMessage: e.toString(),
+      ));
+    }
   }
 
   Future<void> _onLogout(

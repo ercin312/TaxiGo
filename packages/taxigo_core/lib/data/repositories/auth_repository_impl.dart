@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
 import '../../domain/models/user_model.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../firebase/fcm_service.dart';
 import '../../services/social_auth_service.dart';
 import '../mappers/model_mappers.dart';
 import '../network/api_client.dart';
@@ -17,7 +18,9 @@ class AuthRepositoryImpl implements AuthRepository {
     this._apiClient,
     this._prefs, {
     SocialAuthService? socialAuth,
-  }) : _socialAuth = socialAuth ?? SocialAuthService();
+    FcmService? fcmService,
+  })  : _socialAuth = socialAuth ?? SocialAuthService(),
+        _fcmService = fcmService;
 
   static const _localUserKey = 'taxigo_local_user';
   static const _localTokenPrefix = 'local_';
@@ -25,6 +28,7 @@ class AuthRepositoryImpl implements AuthRepository {
   final ApiClient _apiClient;
   final SharedPreferences _prefs;
   final SocialAuthService _socialAuth;
+  final FcmService? _fcmService;
   String? _cachedToken;
 
   @override
@@ -216,12 +220,19 @@ class AuthRepositoryImpl implements AuthRepository {
     String? locale,
   }) async {
     try {
+      // Native provider UI (Apple / Google) must run before any optional
+      // network work — otherwise the login spinner appears to hang.
       final social = await _socialAuth.signIn(provider);
+
+      final resolvedFcmToken = fcmToken ??
+          await _fcmService?.refreshToken(
+            timeout: const Duration(seconds: 3),
+          );
 
       final remote = await verifyFirebaseToken(
         idToken: social.idToken,
         role: role,
-        fcmToken: fcmToken,
+        fcmToken: resolvedFcmToken,
         locale: locale,
       );
 

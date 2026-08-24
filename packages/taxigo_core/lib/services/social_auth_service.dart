@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -125,37 +126,56 @@ class SocialAuthService {
     final rawNonce = _generateNonce();
     final nonce = _sha256ofString(rawNonce);
 
-    final apple = await SignInWithApple.getAppleIDCredential(
-      scopes: [
-        AppleIDAuthorizationScopes.email,
-        AppleIDAuthorizationScopes.fullName,
-      ],
-      nonce: nonce,
-    );
+    try {
+      final apple = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: nonce,
+      ).timeout(
+        const Duration(seconds: 120),
+        onTimeout: () => throw SocialAuthUnavailable(
+          'Apple giriş zaman aşımına uğradı. Tekrar deneyin.',
+        ),
+      );
 
-    final identityToken = apple.identityToken;
-    if (identityToken == null || identityToken.isEmpty) {
-      throw SocialAuthUnavailable('Apple kimlik jetonu alınamadı.');
+      final identityToken = apple.identityToken;
+      if (identityToken == null || identityToken.isEmpty) {
+        throw SocialAuthUnavailable('Apple kimlik jetonu alınamadı.');
+      }
+
+      final oauth = OAuthProvider('apple.com').credential(
+        idToken: identityToken,
+        rawNonce: rawNonce,
+        accessToken: apple.authorizationCode,
+      );
+
+      final userCred = await _auth.signInWithCredential(oauth).timeout(
+        const Duration(seconds: 45),
+        onTimeout: () => throw SocialAuthUnavailable(
+          'Apple oturumu oluşturulamadı. İnternet bağlantınızı kontrol edin.',
+        ),
+      );
+      final fullName = [
+        apple.givenName,
+        apple.familyName,
+      ].whereType<String>().where((s) => s.trim().isNotEmpty).join(' ');
+
+      return _fromFirebaseUser(
+        userCred.user,
+        provider: SocialAuthProvider.apple,
+        fallbackName: fullName.isEmpty ? null : fullName,
+        fallbackEmail: apple.email,
+      );
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        throw SocialAuthCancelled();
+      }
+      throw SocialAuthUnavailable(
+        e.message.isNotEmpty ? e.message : 'Apple ile giriş başarısız.',
+      );
     }
-
-    final oauth = OAuthProvider('apple.com').credential(
-      idToken: identityToken,
-      rawNonce: rawNonce,
-      accessToken: apple.authorizationCode,
-    );
-
-    final userCred = await _auth.signInWithCredential(oauth);
-    final fullName = [
-      apple.givenName,
-      apple.familyName,
-    ].whereType<String>().where((s) => s.trim().isNotEmpty).join(' ');
-
-    return _fromFirebaseUser(
-      userCred.user,
-      provider: SocialAuthProvider.apple,
-      fallbackName: fullName.isEmpty ? null : fullName,
-      fallbackEmail: apple.email,
-    );
   }
 
   Future<void> signOut() async {
@@ -187,7 +207,12 @@ class SocialAuthService {
       throw SocialAuthUnavailable('Firebase oturumu oluşturulamadı.');
     }
 
-    final token = await user.getIdToken(true);
+    final token = await user.getIdToken(true).timeout(
+      const Duration(seconds: 20),
+      onTimeout: () => throw SocialAuthUnavailable(
+        'Kimlik jetonu alınamadı. Tekrar deneyin.',
+      ),
+    );
     if (token == null || token.isEmpty) {
       throw SocialAuthUnavailable('Kimlik jetonu alınamadı.');
     }

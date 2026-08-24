@@ -82,7 +82,7 @@ class FcmService {
     await _requestPermission();
     await _setupLocalNotifications();
 
-    _fcmToken = await _messaging.getToken();
+    _fcmToken = await _fetchToken(timeout: const Duration(seconds: 5));
 
     FirebaseMessaging.onMessage.listen((message) {
       _handlePayload(message);
@@ -196,8 +196,33 @@ class FcmService {
     );
   }
 
-  Future<String?> refreshToken() async {
-    _fcmToken = await _messaging.getToken();
+  Future<String?> refreshToken({
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    _fcmToken = await _fetchToken(timeout: timeout);
+    return _fcmToken;
+  }
+
+  /// iOS can block indefinitely on [FirebaseMessaging.getToken] until APNS
+  /// is ready — never stall login flows waiting on this call.
+  Future<String?> _fetchToken({
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    if (!FirebaseService.isInitialized) return _fcmToken;
+
+    try {
+      final token = await _messaging.getToken().timeout(
+        timeout,
+        onTimeout: () => _fcmToken,
+      );
+      if (token != null && token.isNotEmpty) {
+        _fcmToken = token;
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('FCM getToken failed: $e');
+      }
+    }
     return _fcmToken;
   }
 

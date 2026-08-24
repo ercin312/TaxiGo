@@ -41,8 +41,14 @@ Future<void> setupLocator({String? baseUrl}) async {
     () => ApiClient(prefs: prefs, baseUrl: resolvedBaseUrl),
   );
 
+  locator.registerLazySingleton<FcmService>(() => FcmService());
+
   locator.registerLazySingleton<AuthRepository>(
-    () => AuthRepositoryImpl(locator<ApiClient>(), prefs),
+    () => AuthRepositoryImpl(
+      locator<ApiClient>(),
+      prefs,
+      fcmService: locator<FcmService>(),
+    ),
   );
   locator.registerLazySingleton<UserRepository>(
     () => UserRepositoryImpl(locator<ApiClient>(), locator<AuthRepository>()),
@@ -58,7 +64,6 @@ Future<void> setupLocator({String? baseUrl}) async {
   );
 
   locator.registerLazySingleton<RtdbService>(() => RtdbService());
-  locator.registerLazySingleton<FcmService>(() => FcmService());
   locator.registerLazySingleton<DeviceRegistrationService>(
     () => DeviceRegistrationService(
       apiClient: locator<ApiClient>(),
