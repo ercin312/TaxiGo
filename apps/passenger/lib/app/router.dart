@@ -62,7 +62,11 @@ GoRouter createAppRouter(AuthBloc authBloc) {
       final checking = auth.status == AuthStatus.initial ||
           auth.status == AuthStatus.loading;
 
-      if (loc == '/splash' || checking) return null;
+      // Never leave the user on a blank/private route while auth is unresolved.
+      if (loc == '/splash') return null;
+      if (checking) {
+        return isPublic ? null : '/login';
+      }
 
       if (!authed && !isPublic) return '/login';
 

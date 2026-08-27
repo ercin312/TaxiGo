@@ -195,6 +195,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(state.copyWith(status: AuthStatus.loading, clearError: true));
 
+    try {
+      await _restoreSession(emit).timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {
+          emit(state.copyWith(
+            status: AuthStatus.unauthenticated,
+            clearUser: true,
+            clearToken: true,
+          ));
+        },
+      );
+    } catch (_) {
+      emit(state.copyWith(
+        status: AuthStatus.unauthenticated,
+        clearUser: true,
+      ));
+    }
+  }
+
+  Future<void> _restoreSession(Emitter<AuthState> emit) async {
     final token = await _authRepository.getStoredToken();
     if (token == null || token.isEmpty) {
       emit(state.copyWith(

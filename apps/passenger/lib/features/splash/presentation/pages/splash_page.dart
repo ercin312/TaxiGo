@@ -18,6 +18,7 @@ class SplashPage extends StatefulWidget {
 class _SplashPageState extends State<SplashPage>
     with SingleTickerProviderStateMixin {
   late final AnimationController _motion;
+  bool _navigated = false;
 
   @override
   void initState() {
@@ -38,22 +39,23 @@ class _SplashPageState extends State<SplashPage>
   Future<void> _navigate() async {
     final authBloc = context.read<AuthBloc>();
 
-    // Short branding beat only — never wait on network / modules.
-    await Future<void>.delayed(const Duration(milliseconds: 450));
-    await authBloc.stream
-        .firstWhere(
-          (state) =>
-              state.status != AuthStatus.initial &&
-              state.status != AuthStatus.loading,
-        )
-        .timeout(
-          const Duration(seconds: 2),
-          onTimeout: () => authBloc.state.status == AuthStatus.loading
-              ? const AuthState(status: AuthStatus.unauthenticated)
-              : authBloc.state,
-        );
+    // Short branding beat — never wait on network.
+    await Future<void>.delayed(const Duration(milliseconds: 600));
 
-    if (!mounted) return;
+    try {
+      await authBloc.stream
+          .firstWhere(
+            (state) =>
+                state.status != AuthStatus.initial &&
+                state.status != AuthStatus.loading,
+          )
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      // Auth check hung (network). Continue as logged out so UI never blanks.
+    }
+
+    if (!mounted || _navigated) return;
+    _navigated = true;
 
     final authState = authBloc.state;
     final onboardingDone = await isOnboardingComplete();
@@ -120,6 +122,15 @@ class _SplashPageState extends State<SplashPage>
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(4),
                         gradient: AppColors.accentGradient,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        color: Colors.white70,
                       ),
                     ),
                   ],

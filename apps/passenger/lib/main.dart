@@ -10,6 +10,9 @@ import 'di/locator.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Keep startup minimal so the first Flutter frame is never blocked by
+  // push-permission / FCM token work (can look like a blank page on iPad).
   await FirebaseService.initialize(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -19,25 +22,31 @@ Future<void> main() async {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
 
-  await passengerGetIt<LocalNotificationService>().initialize();
+  runApp(const TaxiGoApp());
 
-  final fcm = passengerGetIt<FcmService>();
-  await fcm.bindPreferences(passengerGetIt<SharedPreferences>());
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _initPushServices();
+  });
+}
 
-  if (FirebaseService.isInitialized) {
-    try {
-      await fcm.initialize();
-      await passengerGetIt<DeviceRegistrationService>().register();
-      fcm.onTokenRefresh.listen((_) {
-        passengerGetIt<DeviceRegistrationService>().register();
-      });
-    } catch (e, stack) {
-      if (kDebugMode) {
-        debugPrint('FCM init skipped: $e');
-        debugPrint('$stack');
-      }
+Future<void> _initPushServices() async {
+  try {
+    await passengerGetIt<LocalNotificationService>().initialize();
+
+    final fcm = passengerGetIt<FcmService>();
+    await fcm.bindPreferences(passengerGetIt<SharedPreferences>());
+
+    if (!FirebaseService.isInitialized) return;
+
+    await fcm.initialize();
+    await passengerGetIt<DeviceRegistrationService>().register();
+    fcm.onTokenRefresh.listen((_) {
+      passengerGetIt<DeviceRegistrationService>().register();
+    });
+  } catch (e, stack) {
+    if (kDebugMode) {
+      debugPrint('Push init skipped: $e');
+      debugPrint('$stack');
     }
   }
-
-  runApp(const TaxiGoApp());
 }

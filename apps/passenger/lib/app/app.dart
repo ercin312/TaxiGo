@@ -50,6 +50,42 @@ class _TaxiGoAppState extends State<TaxiGoApp> {
             supportedLocales: AppLocalizations.supportedLocales,
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             routerConfig: _router,
+            builder: (context, child) {
+              ErrorWidget.builder = (details) {
+                return Material(
+                  color: const Color(0xFF0D1729),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'TaxiGo\n\nSomething went wrong.\nPlease reopen the app.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              };
+              return child ??
+                  const ColoredBox(
+                    color: Color(0xFF0D1729),
+                    child: Center(
+                      child: Text(
+                        'TaxiGo',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  );
+            },
           );
         },
       ),
