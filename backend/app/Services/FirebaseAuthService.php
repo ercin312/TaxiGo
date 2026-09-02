@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class FirebaseAuthService
 {
@@ -71,10 +70,10 @@ class FirebaseAuthService
 
         return User::query()->create([
             'firebase_uid' => $firebaseData['firebase_uid'],
-            'name' => $firebaseData['name'] ?? 'User '.Str::random(6),
-            'email' => $firebaseData['email'],
-            'phone' => $firebaseData['phone'],
-            'avatar' => $firebaseData['avatar'],
+            'name' => $firebaseData['name'] ?? 'Apple Traveler',
+            'email' => $firebaseData['email'] ?? null,
+            'phone' => $firebaseData['phone'] ?? null,
+            'avatar' => $firebaseData['avatar'] ?? null,
             'role' => $role,
             'locale' => request()->input('locale', config('taxigo.default_locale', 'en')),
             'is_active' => true,
@@ -86,6 +85,9 @@ class FirebaseAuthService
      * Mint a Firebase custom token so the mobile client can sign in for RTDB.
      * Driver UID = "{driverId}" to match drivers/{driverId} security rules.
      * Passenger UID = "u{userId}".
+     *
+     * IMPORTANT: Never overwrite firebase_uid used for Apple/Google login
+     * matching — that breaks subsequent Sign in with Apple lookups.
      */
     public function createCustomToken(User $user): ?string
     {
@@ -98,10 +100,6 @@ class FirebaseAuthService
         $uid = $user->driver
             ? (string) $user->driver->id
             : 'u'.$user->id;
-
-        if (empty($user->firebase_uid) || $user->firebase_uid !== $uid) {
-            $user->forceFill(['firebase_uid' => $uid])->save();
-        }
 
         $now = time();
         $claims = [

@@ -42,6 +42,8 @@ abstract class AuthRepository {
     String role = 'passenger',
     String? fcmToken,
     String? locale,
+    String? name,
+    String? email,
   });
 
   /// Google / Apple → Firebase → backend (local fallback if API down).

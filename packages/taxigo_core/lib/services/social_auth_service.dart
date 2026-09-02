@@ -114,13 +114,15 @@ class SocialAuthService {
         (defaultTargetPlatform != TargetPlatform.iOS &&
             defaultTargetPlatform != TargetPlatform.macOS)) {
       throw SocialAuthUnavailable(
-        'Apple ile giriş şu an iOS / macOS üzerinde destekleniyor.',
+        'Sign in with Apple is only available on iOS / macOS.',
       );
     }
 
     final available = await SignInWithApple.isAvailable();
     if (!available) {
-      throw SocialAuthUnavailable('Bu cihazda Apple ile giriş kullanılamıyor.');
+      throw SocialAuthUnavailable(
+        'Sign in with Apple is not available on this device.',
+      );
     }
 
     final rawNonce = _generateNonce();
@@ -136,31 +138,42 @@ class SocialAuthService {
       ).timeout(
         const Duration(seconds: 120),
         onTimeout: () => throw SocialAuthUnavailable(
-          'Apple giriş zaman aşımına uğradı. Tekrar deneyin.',
+          'Sign in with Apple timed out. Please try again.',
         ),
       );
 
       final identityToken = apple.identityToken;
       if (identityToken == null || identityToken.isEmpty) {
-        throw SocialAuthUnavailable('Apple kimlik jetonu alınamadı.');
+        throw SocialAuthUnavailable(
+          'Apple identity token was missing. Please try again.',
+        );
       }
 
+      // Do NOT pass authorizationCode as accessToken — Firebase rejects it.
       final oauth = OAuthProvider('apple.com').credential(
         idToken: identityToken,
         rawNonce: rawNonce,
-        accessToken: apple.authorizationCode,
       );
 
       final userCred = await _auth.signInWithCredential(oauth).timeout(
         const Duration(seconds: 45),
         onTimeout: () => throw SocialAuthUnavailable(
-          'Apple oturumu oluşturulamadı. İnternet bağlantınızı kontrol edin.',
+          'Could not create Apple session. Check your connection.',
         ),
       );
       final fullName = [
         apple.givenName,
         apple.familyName,
       ].whereType<String>().where((s) => s.trim().isNotEmpty).join(' ');
+
+      // Persist Apple name on first login (Firebase only gets it once).
+      if (fullName.isNotEmpty &&
+          (userCred.user?.displayName == null ||
+              userCred.user!.displayName!.trim().isEmpty)) {
+        try {
+          await userCred.user?.updateDisplayName(fullName);
+        } catch (_) {}
+      }
 
       return _fromFirebaseUser(
         userCred.user,
@@ -173,9 +186,28 @@ class SocialAuthService {
         throw SocialAuthCancelled();
       }
       throw SocialAuthUnavailable(
-        e.message.isNotEmpty ? e.message : 'Apple ile giriş başarısız.',
+        e.message.isNotEmpty
+            ? e.message
+            : 'Sign in with Apple failed (${e.code.name}).',
       );
+    } on FirebaseAuthException catch (e) {
+      throw SocialAuthUnavailable(_mapFirebaseAuthError(e));
     }
+  }
+
+  static String _mapFirebaseAuthError(FirebaseAuthException e) {
+    return switch (e.code) {
+      'operation-not-allowed' =>
+        'Apple Sign-In is not enabled in Firebase Authentication.',
+      'invalid-credential' || 'invalid-id-token' =>
+        'Apple credentials were rejected. Please try again.',
+      'network-request-failed' =>
+        'Network error during Apple Sign-In. Please try again.',
+      'user-disabled' => 'This account has been disabled.',
+      _ => e.message?.isNotEmpty == true
+          ? e.message!
+          : 'Apple Sign-In failed (${e.code}).',
+    };
   }
 
   Future<void> signOut() async {

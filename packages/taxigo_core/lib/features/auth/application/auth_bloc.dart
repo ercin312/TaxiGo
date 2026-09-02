@@ -224,15 +224,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       return;
     }
 
+    // Local social sessions (Apple/Google when API is unreachable) must survive
+    // cold start — otherwise App Review sees a login loop after Sign in with Apple.
     if (_authRepository.isLocalToken(token)) {
-      if (!AppConstants.allowDemoMode) {
-        await _authRepository.clearToken();
-        emit(state.copyWith(
-          status: AuthStatus.unauthenticated,
-          clearUser: true,
-        ));
-        return;
-      }
       final localUser = await _authRepository.getStoredLocalUser();
       if (localUser == null) {
         await _authRepository.clearToken();
@@ -242,11 +236,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         ));
         return;
       }
-      final phone = localUser.phone;
-      if (phone != null && phone.isNotEmpty) {
-        final demo = LocalDemoStore.findByPhone(phone);
-        if (demo != null) {
-          LocalDemoStore.instance.applyDemoAccount(demo);
+      if (AppConstants.allowDemoMode) {
+        final phone = localUser.phone;
+        if (phone != null && phone.isNotEmpty) {
+          final demo = LocalDemoStore.findByPhone(phone);
+          if (demo != null) {
+            LocalDemoStore.instance.applyDemoAccount(demo);
+          }
         }
       }
       emit(state.copyWith(

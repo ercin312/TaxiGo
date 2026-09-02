@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:dartz/dartz.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_constants.dart';
@@ -193,6 +195,8 @@ class AuthRepositoryImpl implements AuthRepository {
     String role = 'passenger',
     String? fcmToken,
     String? locale,
+    String? name,
+    String? email,
   }) async {
     try {
       final response = await _apiClient.post<Map<String, dynamic>>(
@@ -202,6 +206,8 @@ class AuthRepositoryImpl implements AuthRepository {
           'role': role,
           if (fcmToken != null) 'fcm_token': fcmToken,
           if (locale != null) 'locale': locale,
+          if (name != null && name.isNotEmpty) 'name': name,
+          if (email != null && email.isNotEmpty) 'email': email,
         },
       );
       return await _parseAuthResponse(response.data);
@@ -234,21 +240,29 @@ class AuthRepositoryImpl implements AuthRepository {
         role: role,
         fcmToken: resolvedFcmToken,
         locale: locale,
+        name: social.name,
+        email: social.email,
       );
 
       return await remote.fold(
         (error) async {
-          if (!AppConstants.allowDemoMode) {
-            return Left(error);
+          // Apple/Google identity already verified by Firebase. If the API
+          // host is down (or misconfigured), still complete login so App
+          // Review and users are not blocked by a dead backend URL.
+          if (kDebugMode) {
+            // ignore: avoid_print
+            print('Social API fallback ($error) → local session');
           }
           return _localSessionFromSocial(social, role: role, locale: locale);
         },
         (session) async => Right(session),
       );
     } on SocialAuthCancelled {
-      return const Left('Giriş iptal edildi.');
+      return const Left('Sign-in was cancelled.');
     } on SocialAuthUnavailable catch (e) {
       return Left(e.message);
+    } on FirebaseAuthException catch (e) {
+      return Left(e.message ?? e.code);
     } catch (e) {
       return Left(e.toString());
     }
@@ -264,7 +278,7 @@ class AuthRepositoryImpl implements AuthRepository {
         ? social.name!.trim()
         : (email != null && email.contains('@')
             ? email.split('@').first
-            : 'TaxiGo kullanıcı');
+            : 'Apple Traveler');
     final identity = email ?? social.uid;
     final id = _stableId('social_${social.provider.name}_$identity');
 

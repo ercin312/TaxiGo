@@ -155,12 +155,21 @@ class AuthController extends Controller
             'fcm_token' => ['sometimes', 'nullable', 'string'],
             'device_id' => ['sometimes', 'nullable', 'string', 'max:64'],
             'locale' => ['sometimes', 'string', 'max:10'],
+            'name' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'email' => ['sometimes', 'nullable', 'email', 'max:255'],
         ]);
 
         $firebaseData = $this->firebaseAuth->verifyIdToken($validated['id_token']);
 
         if (! $firebaseData || empty($firebaseData['firebase_uid'])) {
             return response()->json(['message' => 'Invalid Firebase ID token.'], 401);
+        }
+
+        if (! empty($validated['name'])) {
+            $firebaseData['name'] = $validated['name'];
+        }
+        if (! empty($validated['email'])) {
+            $firebaseData['email'] = $validated['email'];
         }
 
         $user = $this->firebaseAuth->findOrCreateUser(
