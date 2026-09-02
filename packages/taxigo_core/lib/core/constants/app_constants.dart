@@ -2,7 +2,7 @@
 abstract final class AppConstants {
   static const String baseUrl = String.fromEnvironment(
     'TAXIGO_API_BASE_URL',
-    defaultValue: 'https://api.taxigo.app/api/v1',
+    defaultValue: 'https://alanyaproje.com/taxigo/v1',
   );
 
   /// Offline demo / fake fleet / auto-match. Store builds must keep this false.

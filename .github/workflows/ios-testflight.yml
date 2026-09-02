@@ -39,7 +39,7 @@ jobs:
       APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
-      TAXIGO_API_BASE_URL: ${{ vars.TAXIGO_API_BASE_URL || 'https://api.taxigo.app/api/v1' }}
+      TAXIGO_API_BASE_URL: ${{ vars.TAXIGO_API_BASE_URL || 'https://alanyaproje.com/taxigo/v1' }}
 
     steps:
       - uses: actions/checkout@v4

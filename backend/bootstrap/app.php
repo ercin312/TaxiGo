@@ -16,8 +16,14 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function () {
+            // Standard: /api/v1/*  — local / dedicated API hosts
             Route::middleware('api')
                 ->prefix('api')
+                ->group(base_path('routes/api/v1.php'));
+
+            // Shared hosting under alanyaproje.com/taxigo → /taxigo/v1/*
+            // (document root / public folder points at Laravel public/)
+            Route::middleware('api')
                 ->group(base_path('routes/api/v1.php'));
         },
     )
@@ -40,6 +46,6 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*'),
+            fn (Request $request) => $request->is('api/*') || $request->is('v1/*'),
         );
     })->create();
