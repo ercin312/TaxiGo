@@ -71,7 +71,9 @@ GoRouter createAppRouter(AuthBloc authBloc) {
       if (!authed && !isPublic) return '/login';
 
       if (authed && (loc == '/login' || loc == '/otp')) {
-        return '/home';
+        // Do not force /home here — login/OTP listeners choose
+        // profile-setup, passenger home, or driver home.
+        return null;
       }
 
       return null;

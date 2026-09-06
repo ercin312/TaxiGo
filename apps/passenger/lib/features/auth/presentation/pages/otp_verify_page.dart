@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +6,8 @@ import 'package:taxigo_core/taxigo_core.dart';
 
 import '../../../../app/router.dart';
 import '../../../../core/app_helpers.dart';
+import '../../../../di/locator.dart';
+import '../../../app_mode/application/app_mode_cubit.dart';
 
 class OtpVerifyPage extends StatefulWidget {
   const OtpVerifyPage({
@@ -44,9 +45,11 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
           }
           final isDriver = state.user?.role == 'driver';
           if (isDriver) {
-            context.go('/driver/register');
+            passengerGetIt<AppModeCubit>().switchToDriver(isApproved: true);
+            context.go('/driver-home');
             return;
           }
+          passengerGetIt<AppModeCubit>().switchToPassenger();
           resolveHomeRoute().then((route) {
             if (context.mounted) context.go(route);
           });
@@ -58,10 +61,9 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
         }
       },
       builder: (context, state) {
-        final channel = widget.channel ?? state.otpChannel ?? 'sms';
+        final channel = widget.channel ?? state.otpChannel ?? 'app';
         final debug = widget.debugCode ?? state.otpDebugCode;
-        final showDebug =
-            kDebugMode && AppConstants.allowDemoMode && debug != null;
+        final showDebug = debug != null && debug.isNotEmpty;
 
         return AuthScaffold(
           title: l10n.verifyOtpTitle,
@@ -76,17 +78,24 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Kanal: $channel',
+                'Channel: $channel',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               if (showDebug) ...[
                 const SizedBox(height: 8),
-                Text(
-                  'Geliştirme kodu: $debug',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Demo / App Review code: $debug',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
                 ),
               ],
               const SizedBox(height: 24),

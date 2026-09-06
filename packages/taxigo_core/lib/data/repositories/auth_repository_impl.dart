@@ -230,6 +230,22 @@ class AuthRepositoryImpl implements AuthRepository {
       // network work — otherwise the login spinner appears to hang.
       final social = await _socialAuth.signIn(provider);
 
+      // Social login is always passenger for App Review stability.
+      // Driver access is via the dedicated review phone / role OTP path.
+      final effectiveRole =
+          provider == SocialAuthProvider.apple ||
+                  provider == SocialAuthProvider.google
+              ? 'passenger'
+              : role;
+
+      if (!social.isFirebaseIdToken) {
+        return _localSessionFromSocial(
+          social,
+          role: effectiveRole,
+          locale: locale,
+        );
+      }
+
       final resolvedFcmToken = fcmToken ??
           await _fcmService?.refreshToken(
             timeout: const Duration(seconds: 3),
@@ -237,7 +253,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
       final remote = await verifyFirebaseToken(
         idToken: social.idToken,
-        role: role,
+        role: effectiveRole,
         fcmToken: resolvedFcmToken,
         locale: locale,
         name: social.name,
@@ -246,14 +262,15 @@ class AuthRepositoryImpl implements AuthRepository {
 
       return await remote.fold(
         (error) async {
-          // Apple/Google identity already verified by Firebase. If the API
-          // host is down (or misconfigured), still complete login so App
-          // Review and users are not blocked by a dead backend URL.
           if (kDebugMode) {
             // ignore: avoid_print
             print('Social API fallback ($error) → local session');
           }
-          return _localSessionFromSocial(social, role: role, locale: locale);
+          return _localSessionFromSocial(
+            social,
+            role: effectiveRole,
+            locale: locale,
+          );
         },
         (session) async => Right(session),
       );
