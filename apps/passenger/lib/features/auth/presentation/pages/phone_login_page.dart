@@ -9,7 +9,8 @@ import '../../../../core/app_helpers.dart';
 import '../../../../di/locator.dart';
 import '../../../app_mode/application/app_mode_cubit.dart';
 
-/// Production login — Apple / phone OTP (+ Google on Android).
+/// Production login — phone OTP. Social sign-in is disabled on iOS
+/// because Sign in with Apple / Google crash on iPadOS 26 review devices.
 class PhoneLoginPage extends StatefulWidget {
   const PhoneLoginPage({super.key});
 
@@ -22,13 +23,10 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
   final _nameController = TextEditingController(text: 'App Review');
   String _role = 'passenger';
 
-  bool get _showApple =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.iOS ||
-          defaultTargetPlatform == TargetPlatform.macOS);
+  /// Native Apple/Google auth crashes the process on iPadOS 26
+  /// (uncaught in the plugin / Firebase). Phone OTP is the supported path.
+  bool get _showApple => false;
 
-  /// Google Sign-In has crashed on recent iPadOS/iOS review devices.
-  /// Keep it on Android only; iOS uses Apple + phone OTP.
   bool get _showGoogle =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
@@ -116,7 +114,7 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
         return AuthScaffold(
           title: 'Sign In',
           subtitle:
-              'Continue with Apple, or sign in with the App Review demo phone and OTP.',
+              'Sign in with the demo phone number. The OTP code is shown on the next screen — no SMS required.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

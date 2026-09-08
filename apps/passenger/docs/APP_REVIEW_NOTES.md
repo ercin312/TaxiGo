@@ -3,11 +3,11 @@
 Paste into App Store Connect → App Review Information → Notes:
 
 ```
-SIGN IN WITH APPLE
-Works on iPhone and iPad. After Apple authentication the app opens the passenger home map. If the name sheet appears, enter any name and continue.
+SIGN IN
+Please do not use Sign in with Apple or Google on this build — those native flows crash on iPadOS 26. This build uses phone OTP only (no third-party login).
 
-GOOGLE SIGN-IN
-Removed on iOS to avoid a crash on iPadOS/iOS 26 review devices. Use Sign in with Apple or the demo phone accounts below.
+GOOGLE / APPLE
+Not shown on iOS. Use the demo phone accounts below.
 
 DEMO ACCOUNTS (phone OTP — no SMS required)
 The verification code is shown on the OTP screen and is always:

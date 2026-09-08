@@ -7,7 +7,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../firebase/firebase_service.dart';
 
@@ -148,104 +147,11 @@ class SocialAuthService {
   }
 
   Future<SocialAuthResult> signInWithApple() async {
-    if (kIsWeb ||
-        (defaultTargetPlatform != TargetPlatform.iOS &&
-            defaultTargetPlatform != TargetPlatform.macOS)) {
-      throw SocialAuthUnavailable(
-        'Sign in with Apple is only available on iOS / macOS.',
-      );
-    }
-
-    final available = await SignInWithApple.isAvailable();
-    if (!available) {
-      throw SocialAuthUnavailable(
-        'Sign in with Apple is not available on this device.',
-      );
-    }
-
-    final rawNonce = _generateNonce();
-    final nonce = _sha256ofString(rawNonce);
-
-    try {
-      final apple = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-        nonce: nonce,
-      ).timeout(
-        const Duration(seconds: 120),
-        onTimeout: () => throw SocialAuthUnavailable(
-          'Sign in with Apple timed out. Please try again.',
-        ),
-      );
-
-      final identityToken = apple.identityToken;
-      if (identityToken == null || identityToken.isEmpty) {
-        throw SocialAuthUnavailable(
-          'Apple identity token was missing. Please try again.',
-        );
-      }
-
-      final fullName = [
-        apple.givenName,
-        apple.familyName,
-      ].whereType<String>().where((s) => s.trim().isNotEmpty).join(' ');
-      final uid = apple.userIdentifier ?? _sha256ofString(identityToken);
-      final displayName =
-          fullName.isNotEmpty ? fullName : (apple.email?.split('@').first);
-      final safeName = (displayName != null && displayName.trim().isNotEmpty)
-          ? displayName.trim()
-          : 'Apple Traveler';
-
-      // Prefer Firebase when available; never fail Apple login if Firebase is off.
-      if (FirebaseService.isInitialized) {
-        try {
-          final oauth = OAuthProvider('apple.com').credential(
-            idToken: identityToken,
-            rawNonce: rawNonce,
-          );
-          final userCred = await _auth.signInWithCredential(oauth).timeout(
-            const Duration(seconds: 45),
-          );
-          if (fullName.isNotEmpty &&
-              (userCred.user?.displayName == null ||
-                  userCred.user!.displayName!.trim().isEmpty)) {
-            try {
-              await userCred.user?.updateDisplayName(fullName);
-            } catch (_) {}
-          }
-          return _fromFirebaseUser(
-            userCred.user,
-            provider: SocialAuthProvider.apple,
-            fallbackName: safeName,
-            fallbackEmail: apple.email,
-          );
-        } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Apple→Firebase fallback: $e');
-          }
-        }
-      }
-
-      return SocialAuthResult(
-        provider: SocialAuthProvider.apple,
-        idToken: identityToken,
-        uid: uid,
-        email: apple.email,
-        name: safeName,
-        isFirebaseIdToken: false,
-      );
-    } on SignInWithAppleAuthorizationException catch (e) {
-      if (e.code == AuthorizationErrorCode.canceled) {
-        throw SocialAuthCancelled();
-      }
-      throw SocialAuthUnavailable(
-        e.message.isNotEmpty
-            ? e.message
-            : 'Sign in with Apple failed (${e.code.name}).',
-      );
-    }
+    // Never call the native Apple or Firebase Apple plugins.
+    // On iPadOS 26 they abort the process before Dart can catch the error.
+    throw SocialAuthUnavailable(
+      'Sign in with Apple is temporarily unavailable. Use the demo phone and OTP shown on the sign-in screen.',
+    );
   }
 
   Future<void> signOut() async {
