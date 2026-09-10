@@ -9,8 +9,7 @@ import '../../../../core/app_helpers.dart';
 import '../../../../di/locator.dart';
 import '../../../app_mode/application/app_mode_cubit.dart';
 
-/// Production login — phone OTP. Social sign-in is disabled on iOS
-/// because Sign in with Apple / Google crash on iPadOS 26 review devices.
+/// App Review–friendly login: username/password + one-tap demo buttons.
 class PhoneLoginPage extends StatefulWidget {
   const PhoneLoginPage({super.key});
 
@@ -19,52 +18,68 @@ class PhoneLoginPage extends StatefulWidget {
 }
 
 class _PhoneLoginPageState extends State<PhoneLoginPage> {
-  final _phoneController = TextEditingController(text: '+905550000001');
-  final _nameController = TextEditingController(text: 'App Review');
-  String _role = 'passenger';
+  static const _reviewPassengerPhone = '+905550000001';
+  static const _reviewDriverPhone = '+905550000002';
+  static const _reviewPassword = '123456';
 
-  /// Native Apple/Google auth crashes the process on iPadOS 26
-  /// (uncaught in the plugin / Firebase). Phone OTP is the supported path.
-  bool get _showApple => false;
+  final _usernameController =
+      TextEditingController(text: _reviewPassengerPhone);
+  final _passwordController = TextEditingController(text: _reviewPassword);
+  String _role = 'passenger';
 
   bool get _showGoogle =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   @override
   void dispose() {
-    _phoneController.dispose();
-    _nameController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  void _requestOtp(BuildContext context) {
-    final phone = _phoneController.text.trim();
-    final name = _nameController.text.trim();
-    if (phone.length < 8) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid phone number.')),
-      );
-      return;
-    }
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your name.')),
-      );
-      return;
-    }
+  void _signIn({
+    required String phone,
+    required String password,
+    required String role,
+    String? name,
+  }) {
     context.read<AuthBloc>().add(
-          AuthOtpRequested(
-            phoneNumber: phone,
-            name: name,
-            role: _role,
+          AuthReviewLoginRequested(
+            phoneNumber: phone.trim(),
+            password: password.trim(),
+            name: name ??
+                (role == 'driver' ? 'App Review Driver' : 'App Review Passenger'),
+            role: role,
           ),
         );
   }
 
-  void _social(SocialAuthProvider provider) {
-    context.read<AuthBloc>().add(
-          AuthSocialLoginRequested(provider: provider, role: 'passenger'),
-        );
+  void _oneTapPassenger() {
+    setState(() {
+      _role = 'passenger';
+      _usernameController.text = _reviewPassengerPhone;
+      _passwordController.text = _reviewPassword;
+    });
+    _signIn(
+      phone: _reviewPassengerPhone,
+      password: _reviewPassword,
+      role: 'passenger',
+      name: 'App Review Passenger',
+    );
+  }
+
+  void _oneTapDriver() {
+    setState(() {
+      _role = 'driver';
+      _usernameController.text = _reviewDriverPhone;
+      _passwordController.text = _reviewPassword;
+    });
+    _signIn(
+      phone: _reviewDriverPhone,
+      password: _reviewPassword,
+      role: 'driver',
+      name: 'App Review Driver',
+    );
   }
 
   Future<void> _goAfterAuth(BuildContext context, AuthState state) async {
@@ -75,7 +90,6 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
     final isDriver = state.user?.role == 'driver';
     if (isDriver) {
       await passengerGetIt<AppModeCubit>().switchToDriver(isApproved: true);
-      // Review / demo drivers land on driver home, not empty KYC.
       if (context.mounted) context.go('/driver-home');
       return;
     }
@@ -85,21 +99,8 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (state.status == AuthStatus.otpSent) {
-          context.push('/otp', extra: {
-            'phone': state.phoneNumber ?? _phoneController.text.trim(),
-            'name': state.name ?? _nameController.text.trim(),
-            'channel': state.otpChannel,
-            // Always forward server debug codes (App Review demo accounts).
-            if (state.otpDebugCode != null) 'debugCode': state.otpDebugCode,
-            'role': _role,
-          });
-          return;
-        }
         if (state.status == AuthStatus.authenticated) {
           _goAfterAuth(context, state);
         } else if (state.status == AuthStatus.failure &&
@@ -114,72 +115,71 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
         return AuthScaffold(
           title: 'Sign In',
           subtitle:
-              'Sign in with the demo phone number. The OTP code is shown on the next screen — no SMS required.',
+              'App Review: use the one-tap buttons, or username + password below.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (_showApple) ...[
-                FilledButton.icon(
-                  onPressed: loading
-                      ? null
-                      : () => _social(SocialAuthProvider.apple),
-                  icon: const Icon(Icons.apple, size: 22),
-                  label: const Text('Sign in with Apple'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                const SizedBox(height: 12),
-              ],
-              if (_showGoogle) ...[
-                OutlinedButton.icon(
-                  onPressed: loading
-                      ? null
-                      : () => _social(SocialAuthProvider.google),
-                  icon: const Icon(Icons.g_mobiledata_rounded, size: 28),
-                  label: const Text('Continue with Google'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    foregroundColor: AppColors.ink,
-                    side: BorderSide(
-                      color: AppColors.ink.withValues(alpha: 0.2),
-                    ),
-                  ),
+                child: const Text(
+                  'Demo credentials\n'
+                  'Passenger username: +905550000001\n'
+                  'Driver username: +905550000002\n'
+                  'Password (both): 123456',
+                  style: TextStyle(height: 1.45, fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(height: 12),
-              ],
+              ),
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                onPressed: loading ? null : _oneTapPassenger,
+                icon: const Icon(Icons.person),
+                label: const Text('App Review — Passenger'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+              const SizedBox(height: 10),
+              FilledButton.tonalIcon(
+                onPressed: loading ? null : _oneTapDriver,
+                icon: const Icon(Icons.local_taxi),
+                label: const Text('App Review — Driver'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+              const SizedBox(height: 20),
               const Divider(),
               const SizedBox(height: 12),
-              Text(
-                'Demo accounts (App Review)',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Passenger +905550000001 · Driver +905550000002 · OTP 123456',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 12),
               TextField(
-                controller: _nameController,
-                textCapitalization: TextCapitalization.words,
+                controller: _usernameController,
+                keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  labelText: l10n.fullName,
-                  prefixIcon: const Icon(Icons.person_outline_rounded),
+                decoration: const InputDecoration(
+                  labelText: 'Username (phone)',
+                  prefixIcon: Icon(Icons.person_outline_rounded),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
+                controller: _passwordController,
+                obscureText: true,
                 textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _requestOtp(context),
-                decoration: InputDecoration(
-                  labelText: l10n.phoneNumber,
-                  prefixIcon: const Icon(Icons.phone_outlined),
+                onSubmitted: (_) {
+                  if (!loading) {
+                    _signIn(
+                      phone: _usernameController.text,
+                      password: _passwordController.text,
+                      role: _role,
+                    );
+                  }
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  prefixIcon: Icon(Icons.lock_outline_rounded),
                 ),
               ),
               const SizedBox(height: 12),
@@ -201,22 +201,40 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
                   setState(() {
                     _role = value.first;
                     if (_role == 'driver') {
-                      _phoneController.text = '+905550000002';
-                      _nameController.text = 'App Review Driver';
+                      _usernameController.text = _reviewDriverPhone;
                     } else {
-                      _phoneController.text = '+905550000001';
-                      _nameController.text = 'App Review';
+                      _usernameController.text = _reviewPassengerPhone;
                     }
+                    _passwordController.text = _reviewPassword;
                   });
                 },
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               PrimaryButton(
-                label: l10n.sendOtp,
-                icon: Icons.sms_outlined,
+                label: 'Sign In',
+                icon: Icons.login_rounded,
                 isLoading: loading,
-                onPressed: () => _requestOtp(context),
+                onPressed: () => _signIn(
+                  phone: _usernameController.text,
+                  password: _passwordController.text,
+                  role: _role,
+                ),
               ),
+              if (_showGoogle) ...[
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: loading
+                      ? null
+                      : () => context.read<AuthBloc>().add(
+                            const AuthSocialLoginRequested(
+                              provider: SocialAuthProvider.google,
+                              role: 'passenger',
+                            ),
+                          ),
+                  icon: const Icon(Icons.g_mobiledata_rounded, size: 28),
+                  label: const Text('Continue with Google'),
+                ),
+              ],
             ],
           ),
         );

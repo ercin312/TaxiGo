@@ -1,37 +1,29 @@
-# App Store Review Notes — TaxiGo 1.0 (13)
+# App Store Connect — App Review Information
 
-Paste into App Store Connect → App Review Information → Notes:
+## Sign-in Information (required fields)
+
+| Field | Value |
+|-------|--------|
+| **Username** | `+905550000001` |
+| **Password** | `123456` |
+
+Also add in Notes (second account):
 
 ```
-SIGN IN
-Please do not use Sign in with Apple or Google on this build — those native flows crash on iPadOS 26. This build uses phone OTP only (no third-party login).
+SECOND ACCOUNT (Driver):
+Username: +905550000002
+Password: 123456
 
-GOOGLE / APPLE
-Not shown on iOS. Use the demo phone accounts below.
+IN-APP:
+Open the app → Sign In screen shows two buttons:
+• “App Review — Passenger” (one tap)
+• “App Review — Driver” (one tap)
 
-DEMO ACCOUNTS (phone OTP — no SMS required)
-The verification code is shown on the OTP screen and is always:
-
-Passenger (map, booking, wallet, trip history):
-Phone: +905550000001
-OTP: 123456
-Name: App Review
-
-Driver (driver home, go online):
-Phone: +905550000002
-OTP: 123456
-Name: App Review Driver
-
-Steps:
-1) Choose language → Continue
-2) Complete onboarding if shown
-3) On Sign In: select Passenger or Driver (phones autofill)
-4) Tap Send OTP → enter 123456 (also displayed on screen)
-5) You will reach passenger home or driver home with sample content
-
-API: https://alanyaproje.com/taxigo/v1
+Or enter Username + Password and tap Sign In.
+No SMS / no Sign in with Apple required on this build.
 ```
 
-Sign-in field in App Review Information:
-- User name: +905550000001
-- Password: 123456
+## Contact
+
+Contact email: your support email  
+Phone: your phone (optional)

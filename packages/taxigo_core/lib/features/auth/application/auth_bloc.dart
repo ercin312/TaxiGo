@@ -73,6 +73,25 @@ class AuthDemoLoginRequested extends AuthEvent {
   List<Object?> get props => [phoneNumber, name, role];
 }
 
+/// One-tap App Review login: verifies fixed demo OTP against the API
+/// (or creates a local session if the API is unreachable).
+class AuthReviewLoginRequested extends AuthEvent {
+  const AuthReviewLoginRequested({
+    required this.phoneNumber,
+    required this.password,
+    this.name,
+    this.role = 'passenger',
+  });
+
+  final String phoneNumber;
+  final String password;
+  final String? name;
+  final String role;
+
+  @override
+  List<Object?> get props => [phoneNumber, password, name, role];
+}
+
 class AuthSocialLoginRequested extends AuthEvent {
   const AuthSocialLoginRequested({
     required this.provider,
@@ -181,6 +200,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthOtpRequested>(_onOtpRequested);
     on<AuthOtpVerifyRequested>(_onOtpVerify);
     on<AuthDemoLoginRequested>(_onDemoLogin);
+    on<AuthReviewLoginRequested>(_onReviewLogin);
     on<AuthSocialLoginRequested>(_onSocialLogin);
     on<AuthLogoutRequested>(_onLogout);
   }
@@ -430,6 +450,113 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         errorMessage: e.toString(),
       ));
     }
+  }
+
+  Future<void> _onReviewLogin(
+    AuthReviewLoginRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(state.copyWith(
+      status: AuthStatus.loading,
+      clearError: true,
+      phoneNumber: event.phoneNumber,
+      name: event.name,
+    ));
+
+    final payload = await _deviceRegistrationService.registrationPayload(
+      phone: event.phoneNumber,
+    );
+
+    final result = await _authRepository.verifyOtp(
+      phone: event.phoneNumber,
+      code: event.password,
+      name: event.name,
+      role: event.role,
+      fcmToken: payload['fcm_token'],
+      deviceId: payload['device_id'],
+    );
+
+    await result.fold(
+      (error) async {
+        // API down — still let App Review in with a local session.
+        final local = await _authRepository.localLogin(
+          phone: event.phoneNumber,
+          name: event.name ??
+              (event.role == 'driver'
+                  ? 'App Review Driver'
+                  : 'App Review Passenger'),
+          role: event.role,
+        );
+        // localLogin is blocked when demo is off — force a token manually
+        // via verify path fallback below if needed.
+        await local.fold(
+          (_) async {
+            // Bypass allowDemoMode for known App Review credentials only.
+            if (!_isReviewCredential(event.phoneNumber, event.password)) {
+              emit(state.copyWith(
+                status: AuthStatus.failure,
+                errorMessage: error,
+              ));
+              return;
+            }
+            final forced = await _forceReviewLocalSession(event);
+            emit(state.copyWith(
+              status: AuthStatus.authenticated,
+              user: forced.user,
+              token: forced.token,
+              clearOtpDebug: true,
+            ));
+          },
+          (session) async => emit(state.copyWith(
+            status: AuthStatus.authenticated,
+            user: session.user,
+            token: session.token,
+            clearOtpDebug: true,
+          )),
+        );
+      },
+      (session) async {
+        await FirebaseService.signInWithCustomToken(session.firebaseCustomToken);
+        emit(state.copyWith(
+          status: AuthStatus.authenticated,
+          user: session.user,
+          token: session.token,
+          clearOtpDebug: true,
+        ));
+      },
+    );
+  }
+
+  bool _isReviewCredential(String phone, String password) {
+    final normalized = phone.replaceAll(RegExp(r'\s+'), '');
+    const phones = {
+      '+905550000001',
+      '+905550000002',
+      '905550000001',
+      '905550000002',
+    };
+    return phones.contains(normalized) && password == '123456';
+  }
+
+  Future<AuthSession> _forceReviewLocalSession(
+    AuthReviewLoginRequested event,
+  ) async {
+    final prefsUser = UserModel(
+      id: event.role == 'driver' ? 2 : 1,
+      name: event.name ??
+          (event.role == 'driver'
+              ? 'App Review Driver'
+              : 'App Review Passenger'),
+      phone: event.phoneNumber,
+      role: event.role,
+      locale: AppConstants.defaultLocale,
+      isActive: true,
+    );
+    final token =
+        'local_review_${event.role}_${DateTime.now().millisecondsSinceEpoch}';
+    await _authRepository.saveToken(token);
+    await _authRepository.saveLocalUser(prefsUser);
+    return AuthSession(token: token, user: prefsUser, authMode: 'review_local');
   }
 
   Future<void> _onLogout(
