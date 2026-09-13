@@ -110,7 +110,7 @@ def main() -> None:
     )
     print("usesIdfa=false")
 
-    # version localization urls (privacyPolicyUrl lives on appInfoLocalizations)
+    # version localization urls — skip whatsNew (not editable on first version)
     _, locs = api(
         "GET", f"/v1/appStoreVersions/{version_id}/appStoreVersionLocalizations"
     )
@@ -120,8 +120,6 @@ def main() -> None:
             "supportUrl": SUPPORT,
             "marketingUrl": MARKETING,
         }
-        if not loc["attributes"].get("whatsNew"):
-            attrs["whatsNew"] = WHATS_NEW
         try:
             api(
                 "PATCH",
@@ -216,63 +214,95 @@ def main() -> None:
         )
         print("build attached", prefer_build, build_id)
 
-    # cancel unresolved / ready submissions
+    # Release version from any prior submissions (cancel + delete items)
     _, subs = api(
         "GET", f"/v1/apps/{app_id}/reviewSubmissions?filter[platform]=IOS&limit=15"
     )
+    open_ready_id = None
     for s in subs.get("data", []):
         st = s["attributes"].get("state")
-        print("sub", s["id"], st)
-        if st in ("UNRESOLVED_ISSUES", "READY_FOR_REVIEW"):
-            try:
-                api(
-                    "PATCH",
-                    f"/v1/reviewSubmissions/{s['id']}",
-                    {
-                        "data": {
-                            "type": "reviewSubmissions",
-                            "id": s["id"],
-                            "attributes": {"canceled": True},
-                        }
-                    },
-                )
-                print("canceled", s["id"])
-            except SystemExit as e:
-                print("cancel skip", e)
+        sid = s["id"]
+        print("sub", sid, st)
+        if st == "READY_FOR_REVIEW":
+            open_ready_id = sid
+        if st in ("UNRESOLVED_ISSUES", "READY_FOR_REVIEW", "CANCELING", "CANCELED"):
+            status, items = api(
+                "GET", f"/v1/reviewSubmissions/{sid}/items", ok=(200, 404)
+            )
+            for it in items.get("data") or []:
+                print("  item", it["id"], it["attributes"])
+                try:
+                    api(
+                        "DELETE",
+                        f"/v1/reviewSubmissionItems/{it['id']}",
+                        ok=(204, 200, 409, 403),
+                    )
+                    print("  deleted item", it["id"])
+                except SystemExit as e:
+                    print("  delete item skip", e)
+            if st in ("UNRESOLVED_ISSUES", "READY_FOR_REVIEW"):
+                try:
+                    api(
+                        "PATCH",
+                        f"/v1/reviewSubmissions/{sid}",
+                        {
+                            "data": {
+                                "type": "reviewSubmissions",
+                                "id": sid,
+                                "attributes": {"canceled": True},
+                            }
+                        },
+                    )
+                    print("canceled", sid)
+                    if open_ready_id == sid:
+                        open_ready_id = None
+                except SystemExit as e:
+                    print("cancel skip", e)
 
-    time.sleep(2)
-    _, created = api(
-        "POST",
-        "/v1/reviewSubmissions",
-        {
-            "data": {
-                "type": "reviewSubmissions",
-                "attributes": {"platform": "IOS"},
-                "relationships": {"app": {"data": {"type": "apps", "id": app_id}}},
-            }
-        },
-    )
-    sid = created["data"]["id"]
-    print("created submission", sid, created["data"]["attributes"])
+    time.sleep(3)
 
-    api(
-        "POST",
-        "/v1/reviewSubmissionItems",
-        {
-            "data": {
-                "type": "reviewSubmissionItems",
-                "relationships": {
-                    "reviewSubmission": {
-                        "data": {"type": "reviewSubmissions", "id": sid}
+    # Prefer existing READY_FOR_REVIEW submission, else create
+    if open_ready_id:
+        sid = open_ready_id
+        print("reusing submission", sid)
+    else:
+        _, created = api(
+            "POST",
+            "/v1/reviewSubmissions",
+            {
+                "data": {
+                    "type": "reviewSubmissions",
+                    "attributes": {"platform": "IOS"},
+                    "relationships": {
+                        "app": {"data": {"type": "apps", "id": app_id}}
                     },
-                    "appStoreVersion": {
-                        "data": {"type": "appStoreVersions", "id": version_id}
+                }
+            },
+        )
+        sid = created["data"]["id"]
+        print("created submission", sid, created["data"]["attributes"])
+
+    try:
+        api(
+            "POST",
+            "/v1/reviewSubmissionItems",
+            {
+                "data": {
+                    "type": "reviewSubmissionItems",
+                    "relationships": {
+                        "reviewSubmission": {
+                            "data": {"type": "reviewSubmissions", "id": sid}
+                        },
+                        "appStoreVersion": {
+                            "data": {"type": "appStoreVersions", "id": version_id}
+                        },
                     },
-                },
-            }
-        },
-    )
-    print("item linked")
+                }
+            },
+        )
+        print("item linked")
+    except SystemExit as e:
+        print("link item failed, trying submit anyway:", e)
 
     try:
         _, submitted = api(
@@ -290,13 +320,32 @@ def main() -> None:
     except SystemExit:
         _, v = api("GET", f"/v1/appStoreVersions/{version_id}")
         print("version after fail", v["data"]["attributes"])
-        _, locs2 = api(
-            "GET", f"/v1/appStoreVersions/{version_id}/appStoreVersionLocalizations"
+        _, items = api("GET", f"/v1/reviewSubmissions/{sid}/items", ok=(200, 404))
+        print("submission items", json.dumps(items, indent=2)[:2000])
+        # Also check build export compliance
+        _, builds = api(
+            "GET",
+            f"/v1/builds?filter[app]={app_id}&filter[version]={prefer_build}&limit=5",
         )
-        for loc in locs2["data"]:
-            print("loc after", {k: loc["attributes"].get(k) for k in (
-                "locale", "privacyPolicyUrl", "supportUrl", "marketingUrl", "whatsNew"
-            )})
+        for b in builds.get("data", []):
+            print("build attrs", b["id"], b["attributes"])
+            try:
+                api(
+                    "PATCH",
+                    f"/v1/builds/{b['id']}",
+                    {
+                        "data": {
+                            "type": "builds",
+                            "id": b["id"],
+                            "attributes": {
+                                "usesNonExemptEncryption": False,
+                            },
+                        }
+                    },
+                )
+                print("set usesNonExemptEncryption=false on", b["id"])
+            except SystemExit as e:
+                print("encryption patch skip", e)
         raise
 
     _, versions2 = api(
