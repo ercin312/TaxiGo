@@ -130,7 +130,7 @@ jobs:
                               "demoAccountPassword": "123456",
                               "contactFirstName": "Erhan",
                               "contactLastName": "Cinar",
-                              "contactEmail": "ercin312@gmail.com",
+                              "contactEmail": "destek@taxigo.app",
                               "contactPhone": "+905550000001",
                               "notes": NOTES,
                           },
@@ -151,7 +151,7 @@ jobs:
                               "demoAccountPassword": "123456",
                               "contactFirstName": "Erhan",
                               "contactLastName": "Cinar",
-                              "contactEmail": "ercin312@gmail.com",
+                              "contactEmail": "destek@taxigo.app",
                               "contactPhone": "+905550000001",
                               "notes": NOTES,
                           },
@@ -202,5 +202,137 @@ jobs:
           else:
               print("no VALID build found to attach")
 
-          print("DONE — review info set. Submit for Review still needs UI if state is REJECTED.")
+          # Diagnose + try submit via reviewSubmissions API
+          status, vfull = api(
+              "GET",
+              f"/v1/appStoreVersions/{version_id}?include=build,appStoreReviewDetail,appStoreVersionLocalizations",
+          )
+          print("version attrs", json.dumps(vfull.get("data", {}).get("attributes", {}), indent=2)[:1500])
+
+          # Existing open review submissions?
+          status, subs = api(
+              "GET",
+              f"/v1/apps/{app_id}/reviewSubmissions?filter[platform]=IOS&limit=10",
+              ok=(200, 404),
+          )
+          for s in (subs.get("data") or []):
+              print(
+                  "reviewSubmission",
+                  s["id"],
+                  s["attributes"].get("state"),
+                  s["attributes"].get("submittedDate"),
+              )
+
+          submission_id = None
+          for s in (subs.get("data") or []):
+              st = s["attributes"].get("state")
+              if st in ("READY_FOR_REVIEW", "UNRESOLVED_ISSUES", "WAITING_FOR_REVIEW"):
+                  submission_id = s["id"]
+                  break
+
+          if submission_id is None:
+              try:
+                  status, created = api(
+                      "POST",
+                      "/v1/reviewSubmissions",
+                      {
+                          "data": {
+                              "type": "reviewSubmissions",
+                              "attributes": {"platform": "IOS"},
+                              "relationships": {
+                                  "app": {"data": {"type": "apps", "id": app_id}}
+                              },
+                          }
+                      },
+                  )
+                  submission_id = created["data"]["id"]
+                  print("created reviewSubmission", submission_id)
+              except Exception as e:
+                  print("create reviewSubmission failed:", e)
+
+          if submission_id:
+              try:
+                  api(
+                      "POST",
+                      "/v1/reviewSubmissionItems",
+                      {
+                          "data": {
+                              "type": "reviewSubmissionItems",
+                              "relationships": {
+                                  "reviewSubmission": {
+                                      "data": {
+                                          "type": "reviewSubmissions",
+                                          "id": submission_id,
+                                      }
+                                  },
+                                  "appStoreVersion": {
+                                      "data": {
+                                          "type": "appStoreVersions",
+                                          "id": version_id,
+                                      }
+                                  },
+                              },
+                          }
+                      },
+                      ok=(200, 201, 409),
+                  )
+                  print("reviewSubmissionItem linked")
+              except Exception as e:
+                  print("link item skipped:", e)
+
+              try:
+                  status, submitted = api(
+                      "PATCH",
+                      f"/v1/reviewSubmissions/{submission_id}",
+                      {
+                          "data": {
+                              "type": "reviewSubmissions",
+                              "id": submission_id,
+                              "attributes": {"submitted": True},
+                          }
+                      },
+                  )
+                  print(
+                      "SUBMITTED state=",
+                      submitted.get("data", {})
+                      .get("attributes", {})
+                      .get("state"),
+                  )
+              except Exception as e:
+                  print("submit failed:", e)
+                  # Fall back: classic appStoreVersionSubmissions
+                  try:
+                      api(
+                          "POST",
+                          "/v1/appStoreVersionSubmissions",
+                          {
+                              "data": {
+                                  "type": "appStoreVersionSubmissions",
+                                  "relationships": {
+                                      "appStoreVersion": {
+                                          "data": {
+                                              "type": "appStoreVersions",
+                                              "id": version_id,
+                                          }
+                                      }
+                                  },
+                              }
+                          },
+                      )
+                      print("classic appStoreVersionSubmission created")
+                  except Exception as e2:
+                      print("classic submit also failed:", e2)
+
+          status, versions2 = api(
+              "GET",
+              f"/v1/apps/{app_id}/appStoreVersions?filter[platform]=IOS&limit=5",
+          )
+          for v in versions2.get("data", []):
+              print(
+                  "final version",
+                  v["attributes"].get("versionString"),
+                  v["attributes"].get("appStoreState"),
+              )
+
+          print("DONE")
           PY
