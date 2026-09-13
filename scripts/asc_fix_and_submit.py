@@ -1,0 +1,308 @@
+#!/usr/bin/env python3
+"""Fix TaxiGo App Store Connect metadata and attempt Submit for Review."""
+
+from __future__ import annotations
+
+import base64
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+
+subprocess.check_call(
+    [sys.executable, "-m", "pip", "install", "PyJWT", "cryptography", "-q"]
+)
+import jwt as pyjwt  # noqa: E402
+
+BUNDLE = "com.erhancinar.taxigo"
+PRIVACY = "https://alanyaproje.com/taxigo/privacy.html"
+SUPPORT = "https://alanyaproje.com/taxigo/support.html"
+MARKETING = "https://alanyaproje.com/taxigo/"
+NOTES = (
+    "Passenger: +905550000001 / 123456\n"
+    "Driver: +905550000002 / 123456\n\n"
+    'In the app, tap "App Review - Passenger" or "App Review - Driver" (one tap).\n'
+    "Or enter Username + Password and tap Sign In.\n"
+    "No SMS. No Sign in with Apple on this build."
+)
+WHATS_NEW = (
+    "App Review demo login: one-tap Passenger/Driver buttons and "
+    "username/password fields. Sign in with Apple removed on iOS for review stability."
+)
+
+
+def token(pem: str, issuer: str, key_id: str) -> str:
+    now = int(time.time())
+    return pyjwt.encode(
+        {"iss": issuer, "iat": now, "exp": now + 1100, "aud": "appstoreconnect-v1"},
+        pem,
+        algorithm="ES256",
+        headers={"kid": key_id, "typ": "JWT"},
+    )
+
+
+def make_api(pem: str, issuer: str, key_id: str):
+    def api(method: str, path: str, body=None, ok=(200, 201, 204)):
+        data = None if body is None else json.dumps(body).encode()
+        req = urllib.request.Request(
+            f"https://api.appstoreconnect.apple.com{path}",
+            data=data,
+            method=method,
+            headers={
+                "Authorization": f"Bearer {token(pem, issuer, key_id)}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=90) as r:
+                raw_body = r.read().decode()
+                return r.status, json.loads(raw_body) if raw_body else {}
+        except urllib.error.HTTPError as e:
+            err = e.read().decode()
+            print(f"HTTP {e.code} {method} {path}\n{err[:5000]}")
+            if e.code in ok:
+                return e.code, json.loads(err) if err else {}
+            raise SystemExit(f"API failed {e.code} {method} {path}")
+
+    return api
+
+
+def main() -> None:
+    key_id = os.environ["KEY_ID"].strip()
+    issuer = os.environ["ISSUER_ID"].strip()
+    raw = os.environ["API_KEY"].strip()
+    prefer_build = (os.environ.get("BUILD_NUMBER") or "15").strip()
+
+    pem = raw if "BEGIN PRIVATE KEY" in raw else base64.b64decode(raw).decode()
+    if not pem.endswith("\n"):
+        pem += "\n"
+
+    api = make_api(pem, issuer, key_id)
+
+    _, apps = api("GET", f"/v1/apps?filter[bundleId]={BUNDLE}")
+    if not apps.get("data"):
+        raise SystemExit(f"App not found for {BUNDLE}")
+    app_id = apps["data"][0]["id"]
+    print("app", app_id)
+
+    _, versions = api(
+        "GET", f"/v1/apps/{app_id}/appStoreVersions?filter[platform]=IOS&limit=5"
+    )
+    version = versions["data"][0]
+    version_id = version["id"]
+    print("version", version["attributes"])
+
+    # usesIdfa
+    api(
+        "PATCH",
+        f"/v1/appStoreVersions/{version_id}",
+        {
+            "data": {
+                "type": "appStoreVersions",
+                "id": version_id,
+                "attributes": {"usesIdfa": False},
+            }
+        },
+    )
+    print("usesIdfa=false")
+
+    # localization privacy + urls
+    _, locs = api(
+        "GET", f"/v1/appStoreVersions/{version_id}/appStoreVersionLocalizations"
+    )
+    for loc in locs["data"]:
+        lid = loc["id"]
+        attrs = {
+            "privacyPolicyUrl": PRIVACY,
+            "supportUrl": SUPPORT,
+            "marketingUrl": MARKETING,
+        }
+        if not loc["attributes"].get("whatsNew"):
+            attrs["whatsNew"] = WHATS_NEW
+        api(
+            "PATCH",
+            f"/v1/appStoreVersionLocalizations/{lid}",
+            {
+                "data": {
+                    "type": "appStoreVersionLocalizations",
+                    "id": lid,
+                    "attributes": attrs,
+                }
+            },
+        )
+        print("patched loc", loc["attributes"].get("locale"), lid)
+
+    # appInfo localization privacy
+    _, infos = api("GET", f"/v1/apps/{app_id}/appInfos")
+    for info in infos.get("data", []):
+        iid = info["id"]
+        print("appInfo", iid, info["attributes"])
+        status, ilocs = api(
+            "GET", f"/v1/appInfos/{iid}/appInfoLocalizations", ok=(200, 404)
+        )
+        if status != 200:
+            continue
+        for il in ilocs.get("data", []):
+            try:
+                api(
+                    "PATCH",
+                    f"/v1/appInfoLocalizations/{il['id']}",
+                    {
+                        "data": {
+                            "type": "appInfoLocalizations",
+                            "id": il["id"],
+                            "attributes": {"privacyPolicyUrl": PRIVACY},
+                        }
+                    },
+                )
+                print("patched appInfoLoc privacy", il["id"])
+            except SystemExit as e:
+                print("appInfoLoc patch skip", e)
+
+    # review detail
+    _, rd = api("GET", f"/v1/appStoreVersions/{version_id}/appStoreReviewDetail")
+    detail_id = rd["data"]["id"]
+    api(
+        "PATCH",
+        f"/v1/appStoreReviewDetails/{detail_id}",
+        {
+            "data": {
+                "type": "appStoreReviewDetails",
+                "id": detail_id,
+                "attributes": {
+                    "demoAccountRequired": True,
+                    "demoAccountName": "+905550000001",
+                    "demoAccountPassword": "123456",
+                    "contactFirstName": "Erhan",
+                    "contactLastName": "Cinar",
+                    "contactEmail": "destek@taxigo.app",
+                    "contactPhone": "+905550000001",
+                    "notes": NOTES,
+                },
+            }
+        },
+    )
+    print("review detail ok")
+
+    # build
+    _, builds = api(
+        "GET", f"/v1/builds?filter[app]={app_id}&sort=-uploadedDate&limit=20"
+    )
+    build_id = None
+    for b in builds["data"]:
+        if (
+            str(b["attributes"].get("version")) == prefer_build
+            and b["attributes"].get("processingState") == "VALID"
+        ):
+            build_id = b["id"]
+            break
+    if build_id:
+        api(
+            "PATCH",
+            f"/v1/appStoreVersions/{version_id}/relationships/build",
+            {"data": {"type": "builds", "id": build_id}},
+        )
+        print("build attached", prefer_build, build_id)
+
+    # cancel unresolved / ready submissions
+    _, subs = api(
+        "GET", f"/v1/apps/{app_id}/reviewSubmissions?filter[platform]=IOS&limit=15"
+    )
+    for s in subs.get("data", []):
+        st = s["attributes"].get("state")
+        print("sub", s["id"], st)
+        if st in ("UNRESOLVED_ISSUES", "READY_FOR_REVIEW"):
+            try:
+                api(
+                    "PATCH",
+                    f"/v1/reviewSubmissions/{s['id']}",
+                    {
+                        "data": {
+                            "type": "reviewSubmissions",
+                            "id": s["id"],
+                            "attributes": {"canceled": True},
+                        }
+                    },
+                )
+                print("canceled", s["id"])
+            except SystemExit as e:
+                print("cancel skip", e)
+
+    time.sleep(2)
+    _, created = api(
+        "POST",
+        "/v1/reviewSubmissions",
+        {
+            "data": {
+                "type": "reviewSubmissions",
+                "attributes": {"platform": "IOS"},
+                "relationships": {"app": {"data": {"type": "apps", "id": app_id}}},
+            }
+        },
+    )
+    sid = created["data"]["id"]
+    print("created submission", sid, created["data"]["attributes"])
+
+    api(
+        "POST",
+        "/v1/reviewSubmissionItems",
+        {
+            "data": {
+                "type": "reviewSubmissionItems",
+                "relationships": {
+                    "reviewSubmission": {
+                        "data": {"type": "reviewSubmissions", "id": sid}
+                    },
+                    "appStoreVersion": {
+                        "data": {"type": "appStoreVersions", "id": version_id}
+                    },
+                },
+            }
+        },
+    )
+    print("item linked")
+
+    try:
+        _, submitted = api(
+            "PATCH",
+            f"/v1/reviewSubmissions/{sid}",
+            {
+                "data": {
+                    "type": "reviewSubmissions",
+                    "id": sid,
+                    "attributes": {"submitted": True},
+                }
+            },
+        )
+        print("SUBMITTED", submitted["data"]["attributes"])
+    except SystemExit:
+        _, v = api("GET", f"/v1/appStoreVersions/{version_id}")
+        print("version after fail", v["data"]["attributes"])
+        _, locs2 = api(
+            "GET", f"/v1/appStoreVersions/{version_id}/appStoreVersionLocalizations"
+        )
+        for loc in locs2["data"]:
+            print("loc after", {k: loc["attributes"].get(k) for k in (
+                "locale", "privacyPolicyUrl", "supportUrl", "marketingUrl", "whatsNew"
+            )})
+        raise
+
+    _, versions2 = api(
+        "GET", f"/v1/apps/{app_id}/appStoreVersions?filter[platform]=IOS&limit=3"
+    )
+    for v in versions2["data"]:
+        print(
+            "END",
+            v["attributes"].get("versionString"),
+            v["attributes"].get("appStoreState"),
+            v["attributes"].get("appVersionState"),
+        )
+    print("DONE")
+
+
+if __name__ == "__main__":
+    main()
