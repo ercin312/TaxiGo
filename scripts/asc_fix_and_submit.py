@@ -110,33 +110,35 @@ def main() -> None:
     )
     print("usesIdfa=false")
 
-    # localization privacy + urls
+    # version localization urls (privacyPolicyUrl lives on appInfoLocalizations)
     _, locs = api(
         "GET", f"/v1/appStoreVersions/{version_id}/appStoreVersionLocalizations"
     )
     for loc in locs["data"]:
         lid = loc["id"]
         attrs = {
-            "privacyPolicyUrl": PRIVACY,
             "supportUrl": SUPPORT,
             "marketingUrl": MARKETING,
         }
         if not loc["attributes"].get("whatsNew"):
             attrs["whatsNew"] = WHATS_NEW
-        api(
-            "PATCH",
-            f"/v1/appStoreVersionLocalizations/{lid}",
-            {
-                "data": {
-                    "type": "appStoreVersionLocalizations",
-                    "id": lid,
-                    "attributes": attrs,
-                }
-            },
-        )
-        print("patched loc", loc["attributes"].get("locale"), lid)
+        try:
+            api(
+                "PATCH",
+                f"/v1/appStoreVersionLocalizations/{lid}",
+                {
+                    "data": {
+                        "type": "appStoreVersionLocalizations",
+                        "id": lid,
+                        "attributes": attrs,
+                    }
+                },
+            )
+            print("patched loc", loc["attributes"].get("locale"), lid)
+        except SystemExit as e:
+            print("loc patch skip", e)
 
-    # appInfo localization privacy
+    # appInfo localization privacy (App Information > Privacy Policy URL)
     _, infos = api("GET", f"/v1/apps/{app_id}/appInfos")
     for info in infos.get("data", []):
         iid = info["id"]
@@ -147,6 +149,12 @@ def main() -> None:
         if status != 200:
             continue
         for il in ilocs.get("data", []):
+            print(
+                "appInfoLoc before",
+                il["id"],
+                il["attributes"].get("locale"),
+                il["attributes"].get("privacyPolicyUrl"),
+            )
             try:
                 api(
                     "PATCH",
