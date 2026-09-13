@@ -1,0 +1,206 @@
+# One-shot: set App Review demo account + notes for TaxiGo via ASC API.
+# Uses existing APP_STORE_CONNECT_* secrets.
+
+name: ASC Set Review Info
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Prefer this CFBundleVersion when selecting a build (empty = newest)"
+        required: false
+        default: "15"
+
+jobs:
+  set-review-info:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Set App Store Review Information
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          BUILD_NUMBER: ${{ github.event.inputs.build_number }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, json, os, time, urllib.error, urllib.request
+          import jwt  # PyJWT may not exist; fall back to manual if needed
+
+          key_id = os.environ["KEY_ID"].strip()
+          issuer = os.environ["ISSUER_ID"].strip()
+          raw = os.environ["API_KEY"].strip()
+          prefer_build = (os.environ.get("BUILD_NUMBER") or "").strip()
+
+          if "BEGIN PRIVATE KEY" in raw:
+              pem = raw if raw.endswith("\n") else raw + "\n"
+          else:
+              pem = base64.b64decode(raw).decode()
+              if not pem.endswith("\n"):
+                  pem += "\n"
+
+          try:
+              import jwt as pyjwt
+          except ImportError:
+              import subprocess, sys
+              subprocess.check_call([sys.executable, "-m", "pip", "install", "PyJWT", "cryptography", "-q"])
+              import jwt as pyjwt
+
+          def token():
+              now = int(time.time())
+              return pyjwt.encode(
+                  {"iss": issuer, "iat": now, "exp": now + 1100, "aud": "appstoreconnect-v1"},
+                  pem,
+                  algorithm="ES256",
+                  headers={"kid": key_id, "typ": "JWT"},
+              )
+
+          def api(method, path, body=None, ok=(200, 201)):
+              data = None if body is None else json.dumps(body).encode()
+              req = urllib.request.Request(
+                  f"https://api.appstoreconnect.apple.com{path}",
+                  data=data,
+                  method=method,
+                  headers={
+                      "Authorization": f"Bearer {token()}",
+                      "Content-Type": "application/json",
+                      "Accept": "application/json",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=90) as r:
+                      raw_body = r.read().decode()
+                      return r.status, json.loads(raw_body) if raw_body else {}
+              except urllib.error.HTTPError as e:
+                  err = e.read().decode()
+                  print(f"HTTP {e.code} {method} {path}\n{err[:3000]}")
+                  if e.code in ok:
+                      return e.code, json.loads(err) if err else {}
+                  raise
+
+          BUNDLE = "com.erhancinar.taxigo"
+          NOTES = """Passenger: +905550000001 / 123456
+          Driver: +905550000002 / 123456
+
+          In the app, tap “App Review — Passenger” or “App Review — Driver” (one tap).
+          Or enter Username + Password and tap Sign In.
+          No SMS. No Sign in with Apple on this build.
+          """.strip()
+
+          status, apps = api("GET", f"/v1/apps?filter[bundleId]={BUNDLE}")
+          if not apps.get("data"):
+              raise SystemExit(f"App not found for {BUNDLE}")
+          app_id = apps["data"][0]["id"]
+          print("app_id", app_id)
+
+          status, versions = api(
+              "GET",
+              f"/v1/apps/{app_id}/appStoreVersions?filter[platform]=IOS&limit=10",
+          )
+          if not versions.get("data"):
+              raise SystemExit("No iOS appStoreVersions")
+          # Prefer editable / latest
+          version = versions["data"][0]
+          version_id = version["id"]
+          vstate = version["attributes"].get("appStoreState")
+          vnum = version["attributes"].get("versionString")
+          print("version", vnum, vstate, version_id)
+
+          # Review detail
+          status, rel = api(
+              "GET",
+              f"/v1/appStoreVersions/{version_id}/appStoreReviewDetail",
+              ok=(200, 404),
+          )
+          detail_id = None
+          if status == 200 and rel.get("data"):
+              detail_id = rel["data"]["id"]
+              print("existing review detail", detail_id)
+              api(
+                  "PATCH",
+                  f"/v1/appStoreReviewDetails/{detail_id}",
+                  {
+                      "data": {
+                          "type": "appStoreReviewDetails",
+                          "id": detail_id,
+                          "attributes": {
+                              "demoAccountRequired": True,
+                              "demoAccountName": "+905550000001",
+                              "demoAccountPassword": "123456",
+                              "contactFirstName": "Erhan",
+                              "contactLastName": "Cinar",
+                              "contactEmail": "ercin312@gmail.com",
+                              "contactPhone": "+905550000001",
+                              "notes": NOTES,
+                          },
+                      }
+                  },
+              )
+              print("patched review detail")
+          else:
+              status, created = api(
+                  "POST",
+                  "/v1/appStoreReviewDetails",
+                  {
+                      "data": {
+                          "type": "appStoreReviewDetails",
+                          "attributes": {
+                              "demoAccountRequired": True,
+                              "demoAccountName": "+905550000001",
+                              "demoAccountPassword": "123456",
+                              "contactFirstName": "Erhan",
+                              "contactLastName": "Cinar",
+                              "contactEmail": "ercin312@gmail.com",
+                              "contactPhone": "+905550000001",
+                              "notes": NOTES,
+                          },
+                          "relationships": {
+                              "appStoreVersion": {
+                                  "data": {"type": "appStoreVersions", "id": version_id}
+                              }
+                          },
+                      }
+                  },
+              )
+              detail_id = created["data"]["id"]
+              print("created review detail", detail_id)
+
+          # Attach preferred build if version allows
+          status, builds = api(
+              "GET",
+              f"/v1/builds?filter[app]={app_id}&sort=-uploadedDate&limit=20",
+          )
+          build_id = None
+          for b in builds.get("data", []):
+              bn = str(b["attributes"].get("version") or "")
+              proc = b["attributes"].get("processingState")
+              print("build", bn, proc, b["id"])
+              if prefer_build and bn == prefer_build and proc == "VALID":
+                  build_id = b["id"]
+                  break
+          if build_id is None:
+              for b in builds.get("data", []):
+                  if b["attributes"].get("processingState") == "VALID":
+                      build_id = b["id"]
+                      break
+          if build_id:
+              print("selecting build", build_id)
+              # Relationship endpoint
+              try:
+                  api(
+                      "PATCH",
+                      f"/v1/appStoreVersions/{version_id}/relationships/build",
+                      {
+                          "data": {"type": "builds", "id": build_id},
+                      },
+                      ok=(204, 200),
+                  )
+                  print("build attached")
+              except Exception as e:
+                  print("build attach skipped:", e)
+          else:
+              print("no VALID build found to attach")
+
+          print("DONE — review info set. Submit for Review still needs UI if state is REJECTED.")
+          PY
