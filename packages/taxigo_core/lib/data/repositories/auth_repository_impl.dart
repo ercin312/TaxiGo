@@ -230,13 +230,7 @@ class AuthRepositoryImpl implements AuthRepository {
       // network work — otherwise the login spinner appears to hang.
       final social = await _socialAuth.signIn(provider);
 
-      // Social login is always passenger for App Review stability.
-      // Driver access is via the dedicated review phone / role OTP path.
-      final effectiveRole =
-          provider == SocialAuthProvider.apple ||
-                  provider == SocialAuthProvider.google
-              ? 'passenger'
-              : role;
+      final effectiveRole = role;
 
       if (!social.isFirebaseIdToken) {
         return _localSessionFromSocial(

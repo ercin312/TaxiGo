@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../firebase/firebase_service.dart';
 
@@ -147,11 +148,87 @@ class SocialAuthService {
   }
 
   Future<SocialAuthResult> signInWithApple() async {
-    // Never call the native Apple or Firebase Apple plugins.
-    // On iPadOS 26 they abort the process before Dart can catch the error.
-    throw SocialAuthUnavailable(
-      'Sign in with Apple is temporarily unavailable. Use the demo phone and OTP shown on the sign-in screen.',
-    );
+    try {
+      _ensureFirebase();
+
+      final available = await SignInWithApple.isAvailable();
+      if (!available) {
+        throw SocialAuthUnavailable(
+          'Sign in with Apple is not available on this device.',
+        );
+      }
+
+      final rawNonce = _generateNonce();
+      final nonce = _sha256ofString(rawNonce);
+
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: const [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: nonce,
+      );
+
+      final idToken = appleCredential.identityToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw SocialAuthUnavailable(
+          'Apple did not return an identity token. Please try again.',
+        );
+      }
+
+      final displayName = [
+        appleCredential.givenName,
+        appleCredential.familyName,
+      ].whereType<String>().where((p) => p.trim().isNotEmpty).join(' ');
+
+      try {
+        final oauthCredential = OAuthProvider('apple.com').credential(
+          idToken: idToken,
+          rawNonce: rawNonce,
+        );
+        final userCred = await _auth.signInWithCredential(oauthCredential);
+        return _fromFirebaseUser(
+          userCred.user,
+          provider: SocialAuthProvider.apple,
+          fallbackName: displayName.isEmpty ? null : displayName,
+          fallbackEmail: appleCredential.email,
+        );
+      } on FirebaseAuthException {
+        return SocialAuthResult(
+          provider: SocialAuthProvider.apple,
+          idToken: idToken,
+          uid: appleCredential.userIdentifier ?? idToken,
+          email: appleCredential.email,
+          name: displayName.isEmpty ? 'Apple Traveler' : displayName,
+          isFirebaseIdToken: false,
+        );
+      }
+    } on SocialAuthCancelled {
+      rethrow;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        throw SocialAuthCancelled();
+      }
+      throw SocialAuthUnavailable(
+        e.message.isNotEmpty
+            ? e.message
+            : 'Sign in with Apple failed (${e.code}).',
+      );
+    } on PlatformException catch (e) {
+      if (e.code == 'canceled' || e.code == 'ERROR_ABORTED_BY_USER') {
+        throw SocialAuthCancelled();
+      }
+      throw SocialAuthUnavailable(
+        e.message?.isNotEmpty == true
+            ? e.message!
+            : 'Sign in with Apple failed (${e.code}).',
+      );
+    } catch (e) {
+      if (e is SocialAuthUnavailable || e is SocialAuthCancelled) rethrow;
+      throw SocialAuthUnavailable(
+        'Sign in with Apple failed. Please try again.',
+      );
+    }
   }
 
   Future<void> signOut() async {

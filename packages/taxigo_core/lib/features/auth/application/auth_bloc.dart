@@ -463,68 +463,77 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       name: event.name,
     ));
 
-    final payload = await _deviceRegistrationService.registrationPayload(
-      phone: event.phoneNumber,
-    );
+    try {
+      final payload = await _deviceRegistrationService.registrationPayload(
+        phone: event.phoneNumber,
+      );
 
-    final result = await _authRepository.verifyOtp(
-      phone: event.phoneNumber,
-      code: event.password,
-      name: event.name,
-      role: event.role,
-      fcmToken: payload['fcm_token'],
-      deviceId: payload['device_id'],
-    );
+      final result = await _authRepository.verifyOtp(
+        phone: event.phoneNumber,
+        code: event.password,
+        name: event.name,
+        role: event.role,
+        fcmToken: payload['fcm_token'],
+        deviceId: payload['device_id'],
+      );
 
-    await result.fold(
-      (error) async {
-        // API down — still let App Review in with a local session.
-        final local = await _authRepository.localLogin(
-          phone: event.phoneNumber,
-          name: event.name ??
-              (event.role == 'driver'
-                  ? 'App Review Driver'
-                  : 'App Review Passenger'),
-          role: event.role,
-        );
-        // localLogin is blocked when demo is off — force a token manually
-        // via verify path fallback below if needed.
-        await local.fold(
-          (_) async {
-            // Bypass allowDemoMode for known App Review credentials only.
-            if (!_isReviewCredential(event.phoneNumber, event.password)) {
+      await result.fold(
+        (error) async {
+          // API down — still let App Review in with a local session.
+          final local = await _authRepository.localLogin(
+            phone: event.phoneNumber,
+            name: event.name ??
+                (event.role == 'driver'
+                    ? 'App Review Driver'
+                    : 'App Review Passenger'),
+            role: event.role,
+          );
+          // localLogin is blocked when demo is off — force a token manually
+          // via verify path fallback below if needed.
+          await local.fold(
+            (_) async {
+              // Bypass allowDemoMode for known App Review credentials only.
+              if (!_isReviewCredential(event.phoneNumber, event.password)) {
+                emit(state.copyWith(
+                  status: AuthStatus.failure,
+                  errorMessage: error,
+                ));
+                return;
+              }
+              final forced = await _forceReviewLocalSession(event);
               emit(state.copyWith(
-                status: AuthStatus.failure,
-                errorMessage: error,
+                status: AuthStatus.authenticated,
+                user: forced.user,
+                token: forced.token,
+                clearOtpDebug: true,
               ));
-              return;
-            }
-            final forced = await _forceReviewLocalSession(event);
-            emit(state.copyWith(
+            },
+            (session) async => emit(state.copyWith(
               status: AuthStatus.authenticated,
-              user: forced.user,
-              token: forced.token,
+              user: session.user,
+              token: session.token,
               clearOtpDebug: true,
-            ));
-          },
-          (session) async => emit(state.copyWith(
+            )),
+          );
+        },
+        (session) async {
+          await FirebaseService.signInWithCustomToken(
+            session.firebaseCustomToken,
+          );
+          emit(state.copyWith(
             status: AuthStatus.authenticated,
             user: session.user,
             token: session.token,
             clearOtpDebug: true,
-          )),
-        );
-      },
-      (session) async {
-        await FirebaseService.signInWithCustomToken(session.firebaseCustomToken);
-        emit(state.copyWith(
-          status: AuthStatus.authenticated,
-          user: session.user,
-          token: session.token,
-          clearOtpDebug: true,
-        ));
-      },
-    );
+          ));
+        },
+      );
+    } catch (e) {
+      emit(state.copyWith(
+        status: AuthStatus.failure,
+        errorMessage: e.toString(),
+      ));
+    }
   }
 
   bool _isReviewCredential(String phone, String password) {
