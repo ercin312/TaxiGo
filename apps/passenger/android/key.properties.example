@@ -1,0 +1,4 @@
+storePassword=PLACEHOLDER
+keyPassword=PLACEHOLDER
+keyAlias=upload
+storeFile=../keystore/upload-keystore.jks

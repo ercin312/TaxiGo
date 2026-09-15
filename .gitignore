@@ -46,3 +46,10 @@ assets_reference/
 
 # Windows installers
 apps/admin/dist/
+
+# Android release signing (never commit)
+**/android/key.properties
+**/android/keystore/
+**/*.jks
+**/*.keystore
+!**/debug.keystore
