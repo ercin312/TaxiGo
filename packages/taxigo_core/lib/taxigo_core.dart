@@ -51,6 +51,7 @@ export 'firebase/rtdb_service.dart';
 
 export 'notifications/local_notification_service.dart';
 export 'notifications/otp_inbox_service.dart';
+export 'services/app_review_seed.dart';
 export 'services/device_registration_service.dart';
 export 'services/feature_modules_service.dart';
 export 'services/local_demo_store.dart';

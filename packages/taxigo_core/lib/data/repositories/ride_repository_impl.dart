@@ -8,6 +8,7 @@ import '../../domain/models/ride_bid_model.dart';
 import '../../domain/models/ride_model.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/ride_repository.dart';
+import '../../services/app_review_seed.dart';
 import '../../services/local_demo_store.dart';
 import '../mappers/model_mappers.dart';
 import '../network/api_client.dart';
@@ -154,6 +155,10 @@ class RideRepositoryImpl implements RideRepository {
   @override
   Future<Either<String, List<RideModel>>> getRideHistory({int page = 1}) async {
     if (await _isLocal) {
+      final user = await _authRepository.getStoredLocalUser();
+      if (AppReviewSeed.isReviewPhone(user?.phone)) {
+        return Right(AppReviewSeed.rideHistory());
+      }
       return Right(_demo.history());
     }
     try {
@@ -162,14 +167,25 @@ class RideRepositoryImpl implements RideRepository {
         queryParameters: {'page': page},
       );
       final data = response.data;
-      if (data == null) return const Right([]);
-      final rides = data['data'] ?? data['rides'] ?? data;
-      return Right(ModelMappers.ridesFromJsonList(rides));
+      if (data == null) return Right(await _reviewHistoryOrEmpty());
+      final rides = ModelMappers.ridesFromJsonList(
+        data['data'] ?? data['rides'] ?? data,
+      );
+      if (rides.isEmpty) return Right(await _reviewHistoryOrEmpty());
+      return Right(rides);
     } on ApiException catch (e) {
       return Left(e.message);
     } catch (e) {
       return Left(e.toString());
     }
+  }
+
+  Future<List<RideModel>> _reviewHistoryOrEmpty() async {
+    final user = await _authRepository.getStoredLocalUser();
+    if (AppReviewSeed.isReviewPhone(user?.phone)) {
+      return AppReviewSeed.rideHistory();
+    }
+    return const [];
   }
 
   @override

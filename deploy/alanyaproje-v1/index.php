@@ -251,7 +251,59 @@ try {
     }
     if ($method === 'GET' && $path === '/driver/rides/history') {
         tg_require_user();
-        tg_json(array('data' => array()));
+        tg_json(array(
+            'data' => array(
+                array(
+                    'id' => 1001,
+                    'reference' => 'TG-REVIEW-001',
+                    'passenger_id' => 1,
+                    'driver_id' => 2,
+                    'status' => 'completed',
+                    'pickup_latitude' => 41.01,
+                    'pickup_longitude' => 28.97,
+                    'pickup_address' => 'Taksim Square',
+                    'dropoff_latitude' => 41.04,
+                    'dropoff_longitude' => 29.00,
+                    'dropoff_address' => 'Besiktas Pier',
+                    'final_fare' => 185.5,
+                    'payment_method' => 'cash',
+                    'created_at' => tg_now(),
+                ),
+                array(
+                    'id' => 1002,
+                    'reference' => 'TG-REVIEW-002',
+                    'passenger_id' => 1,
+                    'driver_id' => 2,
+                    'status' => 'completed',
+                    'pickup_latitude' => 41.04,
+                    'pickup_longitude' => 29.00,
+                    'pickup_address' => 'Besiktas Pier',
+                    'dropoff_latitude' => 40.99,
+                    'dropoff_longitude' => 29.03,
+                    'dropoff_address' => 'Kadikoy Ferry',
+                    'final_fare' => 210.0,
+                    'payment_method' => 'wallet',
+                    'created_at' => tg_now(),
+                ),
+            ),
+        ));
+    }
+    if ($method === 'GET' && ($path === '/complaints' || $path === '/support/messages')) {
+        $user = tg_require_user();
+        tg_json(array(
+            'data' => array(
+                array(
+                    'id' => 501,
+                    'user_id' => (int) $user['id'],
+                    'ride_id' => 1001,
+                    'subject' => 'App Review sample thread',
+                    'description' => 'Thanks for the smooth ride to Besiktas.',
+                    'status' => 'resolved',
+                    'admin_response' => 'Glad it went well — welcome to TaxiGo.',
+                    'created_at' => tg_now(),
+                ),
+            ),
+        ));
     }
     if ($method === 'GET' && $path === '/rides/active') {
         tg_require_user();
@@ -272,13 +324,40 @@ try {
                     'pickup_address' => 'Taksim Square',
                     'dropoff_latitude' => 41.04,
                     'dropoff_longitude' => 29.00,
-                    'dropoff_address' => 'Beşiktaş Pier',
+                    'dropoff_address' => 'Besiktas Pier',
                     'final_fare' => 185.5,
                     'payment_method' => 'cash',
                     'created_at' => tg_now(),
                 ),
+                array(
+                    'id' => 1002,
+                    'reference' => 'TG-REVIEW-002',
+                    'passenger_id' => 1,
+                    'driver_id' => 2,
+                    'status' => 'completed',
+                    'pickup_latitude' => 41.04,
+                    'pickup_longitude' => 29.00,
+                    'pickup_address' => 'Besiktas Pier',
+                    'dropoff_latitude' => 40.99,
+                    'dropoff_longitude' => 29.03,
+                    'dropoff_address' => 'Kadikoy Ferry',
+                    'final_fare' => 210.0,
+                    'payment_method' => 'wallet',
+                    'created_at' => tg_now(),
+                ),
             ),
         ));
+    }
+    if ($method === 'POST' && $path === '/complaints') {
+        $user = tg_require_user();
+        tg_json(array(
+            'id' => 502,
+            'user_id' => (int) $user['id'],
+            'subject' => isset($body['subject']) ? $body['subject'] : 'Support',
+            'description' => isset($body['description']) ? $body['description'] : '',
+            'status' => 'open',
+            'created_at' => tg_now(),
+        ), 201);
     }
     if ($method === 'GET' && $path === '/wallet') {
         $user = tg_require_user();

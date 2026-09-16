@@ -22,15 +22,19 @@ PRIVACY = "https://alanyaproje.com/taxigo/privacy.html"
 SUPPORT = "https://alanyaproje.com/taxigo/support.html"
 MARKETING = "https://alanyaproje.com/taxigo/"
 NOTES = (
-    "Passenger: +905550000001 / 123456\n"
-    "Driver: +905550000002 / 123456\n\n"
-    'In the app, tap "App Review - Passenger" or "App Review - Driver" (one tap).\n'
-    "Or enter Username + Password and tap Sign In.\n"
-    "No SMS. No Sign in with Apple on this build."
+    "PASSENGER: +905550000001 / 123456\n"
+    "DRIVER: +905550000002 / 123456\n\n"
+    'On Sign In, tap "App Review — Passenger" or "App Review — Driver" '
+    "(one tap). Or enter Username + Password and tap Sign In.\n"
+    "No SMS. No Apple ID required.\n\n"
+    "Pre-populated: wallet balance, trip/ride history, approved driver "
+    "profile with vehicle. This app has no Chats feature — use Trip History "
+    "and Complaints for support-style content.\n"
+    "Allow location for map/booking review."
 )
 WHATS_NEW = (
-    "App Review demo login: one-tap Passenger/Driver buttons and "
-    "username/password fields. Sign in with Apple removed on iOS for review stability."
+    "Restored App Review demo login (one-tap Passenger/Driver + "
+    "username/password). Maps API key fix retained so Sign In no longer crashes."
 )
 
 
