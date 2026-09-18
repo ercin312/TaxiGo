@@ -27,14 +27,15 @@ NOTES = (
     'On Sign In, tap "App Review — Passenger" or "App Review — Driver" '
     "(one tap). Or enter Username + Password and tap Sign In.\n"
     "No SMS. No Apple ID required.\n\n"
-    "Pre-populated: wallet balance, trip/ride history, approved driver "
-    "profile with vehicle. This app has no Chats feature — use Trip History "
-    "and Complaints for support-style content.\n"
+    "Driver account opens an approved driver home with vehicle profile, "
+    "wallet balance, and ride history already seeded.\n"
+    "Passenger: wallet + trip history pre-populated.\n"
+    "This app has no Chats feature — use Trip History / Complaints.\n"
     "Allow location for map/booking review."
 )
 WHATS_NEW = (
-    "Restored App Review demo login (one-tap Passenger/Driver + "
-    "username/password). Maps API key fix retained so Sign In no longer crashes."
+    "Fix App Review driver login: approved driver profile is always "
+    "available so Sign In no longer shows Driver profile not found."
 )
 
 

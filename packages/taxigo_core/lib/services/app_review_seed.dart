@@ -1,5 +1,7 @@
+import '../domain/enums/driver_approval_status.dart';
 import '../domain/enums/payment_method.dart';
 import '../domain/enums/ride_status.dart';
+import '../domain/models/driver_model.dart';
 import '../domain/models/ride_model.dart';
 
 /// Fixed App Store / Play review accounts and seed content.
@@ -15,6 +17,33 @@ abstract final class AppReviewSeed {
         normalized == driverPhone ||
         normalized == '905550000001' ||
         normalized == '905550000002';
+  }
+
+  static bool isReviewDriverPhone(String? phone) {
+    if (phone == null || phone.isEmpty) return false;
+    final normalized = phone.replaceAll(RegExp(r'\s+'), '');
+    return normalized == driverPhone || normalized == '905550000002';
+  }
+
+  /// Approved taxi profile so App Review driver login never dead-ends.
+  static DriverModel driverProfile({int userId = 2}) {
+    return DriverModel(
+      id: userId,
+      userId: userId,
+      approvalStatus: DriverApprovalStatus.approved,
+      isOnline: false,
+      currentLatitude: 41.0082,
+      currentLongitude: 28.9784,
+      heading: 0,
+      ratingAverage: 4.9,
+      ratingCount: 128,
+      totalRides: 420,
+      approvedAt: DateTime.now().toUtc().subtract(const Duration(days: 30)),
+      vehicleMake: 'Toyota',
+      vehicleModel: 'Corolla',
+      vehiclePlate: '34 TG 100',
+      vehicleColor: 'White',
+    );
   }
 
   static List<RideModel> rideHistory() {

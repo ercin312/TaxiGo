@@ -5,6 +5,7 @@ import '../../domain/enums/document_type.dart';
 import '../../domain/enums/ride_status.dart';
 import '../../domain/models/driver_model.dart';
 import '../../domain/models/ride_model.dart';
+import '../../domain/models/user_model.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/driver_repository.dart';
 import '../../services/app_review_seed.dart';
@@ -73,9 +74,14 @@ class DriverRepositoryImpl implements DriverRepository {
 
   @override
   Future<Either<String, DriverModel>> getProfile() async {
+    final user = await _authRepository.getStoredLocalUser();
+
     if (await _isLocal) {
-      final user = await _authRepository.getStoredLocalUser();
       if (user == null) return const Left('Oturum bulunamadı');
+      if (AppReviewSeed.isReviewDriverPhone(user.phone) ||
+          (AppReviewSeed.isReviewPhone(user.phone) && user.role == 'driver')) {
+        return Right(AppReviewSeed.driverProfile(userId: user.id));
+      }
       final driver = _demo.existingDriverProfile(user);
       if (driver == null) {
         return const Left('Driver profile not found.');
@@ -87,17 +93,36 @@ class DriverRepositoryImpl implements DriverRepository {
         ApiEndpoints.driverProfile,
       );
       final data = response.data;
-      if (data == null) return const Left('Empty response');
-      final driver = data['driver'] ?? data;
-      if (driver is! Map<String, dynamic>) {
-        return const Left('Invalid driver response');
+      if (data == null) {
+        return _reviewDriverFallback(user);
       }
-      return Right(ModelMappers.driverFromJson(driver));
+      final raw = data['driver'] ?? data;
+      final Map<String, dynamic>? driverMap = raw is Map
+          ? Map<String, dynamic>.from(raw)
+          : null;
+      if (driverMap == null) {
+        return _reviewDriverFallback(user);
+      }
+      return Right(ModelMappers.driverFromJson(driverMap));
     } on ApiException catch (e) {
+      final fallback = await _reviewDriverFallback(user);
+      if (fallback.isRight()) return fallback;
       return Left(e.message);
     } catch (e) {
+      final fallback = await _reviewDriverFallback(user);
+      if (fallback.isRight()) return fallback;
       return Left(e.toString());
     }
+  }
+
+  Future<Either<String, DriverModel>> _reviewDriverFallback(
+    UserModel? user,
+  ) async {
+    if (AppReviewSeed.isReviewDriverPhone(user?.phone) ||
+        (AppReviewSeed.isReviewPhone(user?.phone) && user?.role == 'driver')) {
+      return Right(AppReviewSeed.driverProfile(userId: user?.id ?? 2));
+    }
+    return const Left('Driver profile not found.');
   }
 
   @override

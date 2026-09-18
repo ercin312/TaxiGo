@@ -179,6 +179,12 @@ class LocalDemoStore {
     _pendingOffer = null;
   }
 
+  /// Seeds an approved driver for App Review offline / local sessions.
+  void seedApprovedDriver(DriverModel driver) {
+    _driver = driver;
+    _driverOnline = false;
+  }
+
   void clearDemoSession() {
     _activeAccount = null;
     _driver = null;

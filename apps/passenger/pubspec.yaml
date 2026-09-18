@@ -1,7 +1,7 @@
 name: taxigo
 description: TaxiGo mobile application — passenger and driver in one app.
 publish_to: 'none'
-version: 1.0.2+17
+version: 1.0.3+18
 
 environment:
   sdk: ^3.11.4

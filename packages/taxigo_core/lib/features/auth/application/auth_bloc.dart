@@ -9,6 +9,7 @@ import '../../../domain/models/user_model.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/repositories/user_repository.dart';
 import '../../../firebase/firebase_service.dart';
+import '../../../services/app_review_seed.dart';
 import '../../../services/device_registration_service.dart';
 import '../../../services/local_demo_store.dart';
 import '../../../services/social_auth_service.dart';
@@ -501,6 +502,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
                 return;
               }
               final forced = await _forceReviewLocalSession(event);
+              _seedReviewDriverIfNeeded(forced.user);
               emit(state.copyWith(
                 status: AuthStatus.authenticated,
                 user: forced.user,
@@ -508,15 +510,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
                 clearOtpDebug: true,
               ));
             },
-            (session) async => emit(state.copyWith(
-              status: AuthStatus.authenticated,
-              user: session.user,
-              token: session.token,
-              clearOtpDebug: true,
-            )),
+            (session) async {
+              _seedReviewDriverIfNeeded(session.user);
+              emit(state.copyWith(
+                status: AuthStatus.authenticated,
+                user: session.user,
+                token: session.token,
+                clearOtpDebug: true,
+              ));
+            },
           );
         },
         (session) async {
+          _seedReviewDriverIfNeeded(session.user);
           await FirebaseService.signInWithCustomToken(
             session.firebaseCustomToken,
           );
@@ -565,7 +571,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         'local_review_${event.role}_${DateTime.now().millisecondsSinceEpoch}';
     await _authRepository.saveToken(token);
     await _authRepository.saveLocalUser(prefsUser);
+    _seedReviewDriverIfNeeded(prefsUser);
     return AuthSession(token: token, user: prefsUser, authMode: 'review_local');
+  }
+
+  void _seedReviewDriverIfNeeded(UserModel? user) {
+    if (user == null) return;
+    if (user.role == 'driver' && AppReviewSeed.isReviewPhone(user.phone)) {
+      LocalDemoStore.instance.seedApprovedDriver(
+        AppReviewSeed.driverProfile(userId: user.id),
+      );
+    }
   }
 
   Future<void> _onLogout(
