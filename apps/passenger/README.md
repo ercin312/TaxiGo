@@ -1,17 +1,11 @@
-# taxigo_passenger
+# TaxiGo
 
-A new Flutter project.
+Tek Flutter uygulaması: yolcu ve sürücü aynı binary’de (`AppModeCubit`).
 
-## Getting Started
+```bash
+flutter pub get
+flutter run
+# release: flutter build apk / ipa — CI uses this folder only
+```
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Docs: `docs/APP_STORE_IOS.md`, `docs/GOOGLE_PLAY.md`, `docs/APP_REVIEW_NOTES.md`, `docs/SOCIAL_LOGIN.md`, `docs/TESTFLIGHT_GITHUB.md`.

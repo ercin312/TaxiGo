@@ -1,4 +1,5 @@
-# iOS → TestFlight (GitHub Actions)
+# TaxiGo iOS → TestFlight (GitHub Actions)
+# Builds the single TaxiGo app at apps/passenger (passenger + driver modes).
 #
 # Required secrets:
 #   IOS_TEAM_ID

@@ -1,18 +1,23 @@
 # TaxiGo
 
-Full-stack taxi platform: passenger app, driver app, Laravel API + admin, Firebase realtime.
+Tek mobil uygulama + Laravel API + admin + Firebase realtime.
 
 ## Structure
 
 ```
-apps/passenger/        # Tek TaxiGo mobil uygulaması (yolcu + sürücü)
-apps/admin/            # Windows masaüstü admin paneli (Laravel UI kabuğu)
+apps/passenger/        # TaxiGo mobil uygulaması (yolcu + sürücü tek app)
+apps/admin/            # Windows masaüstü admin paneli
 packages/taxigo_core/  # Paylaşılan Dart paketi
-backend/               # Laravel 13 API + Inertia/Vue admin
+backend/               # Laravel API + Inertia/Vue admin
 firebase/              # RTDB güvenlik kuralları
+deploy/                # Shared-hosting API paketi
 ```
 
-> **Not:** `apps/driver/` artık kullanılmıyor. Sürücü özellikleri `apps/passenger/` içinde.
+Paket adı: `taxigo` (`apps/passenger/pubspec.yaml`). Bundle ID: `com.taxigo.app`.
+
+Sürücü modu aynı uygulamada: girişte **Driver** rolü veya **Account → Switch to driver** / KYC sonrası `/driver-home`.
+
+> Ayrı bir `apps/driver` uygulaması yok; kaldırıldı.
 
 ## Prerequisites
 
@@ -25,8 +30,7 @@ firebase/              # RTDB güvenlik kuralları
 - Windows admin: Visual Studio 2022 (Desktop C++) + Edge WebView2 Runtime
 - **iOS App Store:** Mac + Xcode 15+, Apple Developer account — see `apps/passenger/docs/APP_STORE_IOS.md`
 
-> Social login: `apps/passenger/docs/SOCIAL_LOGIN.md`  
-> Bundle ID (iOS+Android): `com.taxigo.app`
+> Social login: `apps/passenger/docs/SOCIAL_LOGIN.md`
 
 ## Quick start
 
@@ -68,19 +72,18 @@ flutter build windows --release
 
 Çıktı: `apps/admin/build/windows/x64/runner/Release/taxigo_admin.exe`
 
-Giriş: `admin@taxigo.app` / `password` — API: `http://127.0.0.1:8000/api/v1`  
-(WebView yok; native masaüstü UI + `/api/v1/admin/*`)
+Giriş: `admin@taxigo.app` / `password` — API: `http://127.0.0.1:8000/api/v1`
 
-### Flutter apps
+### TaxiGo mobile app
 
 ```bash
 cd packages/taxigo_core && flutter pub get
-cd apps/passenger && flutter pub get && flutter run
+cd ../../apps/passenger && flutter pub get && flutter run
 ```
 
 ## APK build
 
-### Local (Windows / macOS / Linux)
+### Local
 
 ```bash
 cd packages/taxigo_core && flutter pub get && flutter gen-l10n
@@ -89,26 +92,18 @@ flutter pub get
 flutter build apk --release --dart-define=TAXIGO_API_BASE_URL=http://YOUR_IP:8000/api/v1
 ```
 
-APK output: `apps/passenger/build/app/outputs/flutter-apk/app-release.apk`
+APK: `apps/passenger/build/app/outputs/flutter-apk/app-release.apk`
 
-### GitLab CI
+### GitLab CI / GitHub Actions
 
-Push to GitLab — pipeline runs `build:apk` and saves the APK as artifact (14 days).
-
-Set variable `TAXIGO_API_BASE_URL` in **Settings → CI/CD → Variables**.
-
-### GitHub Actions
-
-Workflow: `.github/workflows/build-apk.yml` — manual or push to `main`.
-
-Download APK from **Actions → Artifacts**.
+- GitLab: `build:apk` artifact (14 days). Variable: `TAXIGO_API_BASE_URL`
+- GitHub: `.github/workflows/build-apk.yml` and `ios-testflight.yml` — only `apps/passenger`
 
 ### Configure before running on device
 
-1. Create Firebase project and add `google-services.json` to the Android app
-2. Run `flutterfire configure` or add `firebase_options.dart`
-3. Set Google Maps API key in `AndroidManifest.xml`
-4. Point API: `--dart-define=TAXIGO_API_BASE_URL=http://10.0.2.2:8000/api/v1` (Android emulator)
+1. Firebase: `google-services.json` / `GoogleService-Info.plist` / `firebase_options.dart`
+2. Google Maps API key in `AndroidManifest.xml` / iOS
+3. API: `--dart-define=TAXIGO_API_BASE_URL=http://10.0.2.2:8000/api/v1` (Android emulator)
 
 ### Environment variables (backend `.env`)
 
@@ -118,14 +113,9 @@ FIREBASE_DATABASE_URL=https://your-project.firebaseio.com
 FIREBASE_DATABASE_SECRET=optional_for_server_writes
 ```
 
-## Authentication (OTP)
+## Authentication
 
-Giriş **SMS ile değil**, backend üzerinden **uygulama içi OTP** ile yapılır:
-
-1. Kullanıcı telefon numarasını girer
-2. `POST /api/v1/auth/request-otp` — 6 haneli kod üretilir
-3. Kod doğrulama ekranında uygulama içinde gösterilir (`.env`: `TAXIGO_OTP_DELIVER_IN_APP=true`)
-4. `POST /api/v1/auth/verify-otp` — Sanctum token döner
+Login supports review credentials + social (platform-dependent). OTP module may be enabled server-side.
 
 ## API overview
 
@@ -133,18 +123,12 @@ Giriş **SMS ile değil**, backend üzerinden **uygulama içi OTP** ile yapılı
 - `POST /api/v1/auth/verify-otp` — Verify OTP and login
 - `POST /api/v1/rides/eta` — Fare estimate
 - `POST /api/v1/rides` — Create ride
-- `POST /api/v1/driver/rides/{id}/accept` — Driver accepts
+- `POST /api/v1/driver/rides/{id}/accept` — Driver accepts (same app, driver mode)
 - Full list: `php artisan route:list --path=api`
 
 ## Localization
 
 Supported: **TR, EN, Crnogorski (cnr), RU, Arabic (ar)** with RTL.
-
-Add a language:
-
-1. Create `packages/taxigo_core/lib/l10n/intl_XX.arb`
-2. Register in `supported_locales.dart`
-3. Run `flutter gen-l10n` in `taxigo_core`
 
 ## Ride status flow
 

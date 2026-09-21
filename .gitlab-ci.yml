@@ -1,5 +1,5 @@
 # TaxiGo — GitLab CI/CD
-# Builds release APK from apps/passenger (unified TaxiGo app)
+# Builds release APK from apps/passenger (single app: passenger + driver modes)
 
 stages:
   - test

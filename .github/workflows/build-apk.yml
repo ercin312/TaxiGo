@@ -1,5 +1,7 @@
 name: Build APK
 
+# Single TaxiGo app (apps/passenger) — passenger + driver in one binary.
+
 on:
   workflow_dispatch:
   push:
