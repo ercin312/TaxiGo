@@ -18,6 +18,9 @@ backend/bootstrap/cache/*.php
 .env.*
 !.env.example
 
+# Shared-hosting deploy secrets (copy from config.local.example.php)
+deploy/alanyaproje-v1/config.local.php
+
 # Firebase Admin / server credentials only (client configs are committed)
 **/firebase-service-account.json
 backend/storage/app/firebase-service-account.json
