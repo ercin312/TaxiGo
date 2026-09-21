@@ -1,11 +1,13 @@
 import 'package:dartz/dartz.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../domain/enums/payment_method.dart';
 import '../../domain/enums/ride_status.dart';
 import '../../domain/models/fare_estimate_model.dart';
 import '../../domain/models/rating_model.dart';
 import '../../domain/models/ride_bid_model.dart';
 import '../../domain/models/ride_model.dart';
+import '../../domain/models/ride_receipt_model.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/ride_repository.dart';
 import '../../services/app_review_seed.dart';
@@ -81,6 +83,10 @@ class RideRepositoryImpl implements RideRepository {
     String? vehicleType,
     String? promoCode,
     double? offeredFare,
+    String productMode = 'taxi',
+    String matchMode = 'instant',
+    DateTime? scheduledAt,
+    String? passengerNote,
   }) async {
     if (await _isLocal) {
       final user = await _authRepository.getStoredLocalUser();
@@ -97,6 +103,10 @@ class RideRepositoryImpl implements RideRepository {
           paymentMethod: paymentMethod,
           vehicleType: vehicleType,
           offeredFare: offeredFare,
+          productMode: productMode,
+          matchMode: matchMode,
+          scheduledAt: scheduledAt,
+          passengerNote: passengerNote,
         ),
       );
     }
@@ -114,6 +124,12 @@ class RideRepositoryImpl implements RideRepository {
           if (vehicleType != null) 'vehicle_type': vehicleType,
           if (promoCode != null) 'promo_code': promoCode,
           if (offeredFare != null) 'offered_fare': offeredFare,
+          'product_mode': productMode,
+          'match_mode': matchMode,
+          'is_bidding': matchMode == 'bidding',
+          if (scheduledAt != null) 'scheduled_at': scheduledAt.toUtc().toIso8601String(),
+          if (passengerNote != null && passengerNote.isNotEmpty)
+            'passenger_note': passengerNote,
         },
       );
       final data = response.data;
@@ -410,6 +426,56 @@ class RideRepositoryImpl implements RideRepository {
         return const Left('Paylaşım linki alınamadı');
       }
       return Right(url);
+    } on ApiException catch (e) {
+      return Left(e.message);
+    } catch (e) {
+      return Left(e.toString());
+    }
+  }
+
+  @override
+  Future<Either<String, RideReceiptModel>> getReceipt(int rideId) async {
+    if (await _isLocal) {
+      final ride = _demo.getRide(rideId) ?? _demo.passengerActiveRide;
+      if (ride == null) return const Left('Ride not found');
+      return Right(
+        RideReceiptModel(
+          receiptNumber: 'RCP-${ride.reference}',
+          companyName: 'TaxiGo Montenegro',
+          companyAddress: 'Podgorica, Montenegro',
+          companyEmail: 'destek@taxigo.app',
+          rideReference: ride.reference,
+          pickupAddress: ride.pickupAddress,
+          dropoffAddress: ride.dropoffAddress,
+          completedAt: ride.completedAt ?? DateTime.now(),
+          issuedAt: DateTime.now(),
+          passengerName: 'Demo Passenger',
+          driverName: ride.driverName ?? 'Demo Driver',
+          vehiclePlate: ride.vehiclePlate,
+          paymentMethod: ride.paymentMethod.value,
+          productMode: ride.productMode,
+          distanceKm: ride.distanceKm ?? ride.estimatedDistanceKm,
+          durationMinutes:
+              ride.durationMinutes ?? ride.estimatedDurationMinutes,
+          currency: AppConstants.currency,
+          total: ride.finalFare ?? ride.offeredFare ?? ride.estimatedFare ?? 0,
+          subtotal: ride.finalFare ?? ride.offeredFare ?? ride.estimatedFare ?? 0,
+          discount: ride.discountAmount,
+          notes: const [
+            'This is an electronic receipt for expense / business travel purposes.',
+          ],
+        ),
+      );
+    }
+    try {
+      final response = await _apiClient.get<Map<String, dynamic>>(
+        ApiEndpoints.rideReceipt(rideId),
+      );
+      final raw = response.data?['receipt'];
+      if (raw is! Map) return const Left('Invalid receipt response');
+      return Right(
+        RideReceiptModel.fromJson(Map<String, dynamic>.from(raw)),
+      );
     } on ApiException catch (e) {
       return Left(e.message);
     } catch (e) {

@@ -18,6 +18,8 @@ class SplashPage extends StatefulWidget {
 class _SplashPageState extends State<SplashPage>
     with SingleTickerProviderStateMixin {
   late final AnimationController _motion;
+  late final Animation<double> _fade;
+  late final Animation<double> _scale;
   bool _navigated = false;
 
   @override
@@ -25,8 +27,19 @@ class _SplashPageState extends State<SplashPage>
     super.initState();
     _motion = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
-    )..forward();
+      duration: const Duration(milliseconds: 1400),
+    );
+    _fade = CurvedAnimation(
+      parent: _motion,
+      curve: const Interval(0.0, 0.55, curve: Curves.easeOut),
+    );
+    _scale = Tween<double>(begin: 0.82, end: 1).animate(
+      CurvedAnimation(
+        parent: _motion,
+        curve: const Interval(0.0, 0.7, curve: Curves.easeOutBack),
+      ),
+    );
+    _motion.forward();
     _navigate();
   }
 
@@ -38,9 +51,28 @@ class _SplashPageState extends State<SplashPage>
 
   Future<void> _navigate() async {
     final authBloc = context.read<AuthBloc>();
+    final prefs = passengerGetIt<SharedPreferences>();
 
-    // Short branding beat — never wait on network.
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+    // Ensure a locale exists so we never force the language picker first.
+    if (prefs.getString(AppConstants.localeKey) == null) {
+      await prefs.setString(
+        AppConstants.localeKey,
+        SupportedLocales.defaultLocale.languageCode,
+      );
+    }
+    // Skip onboarding carousel permanently.
+    await markOnboardingComplete();
+
+    // Hold until logo animation mostly finishes.
+    await Future.wait([
+      Future<void>.delayed(const Duration(milliseconds: 1100)),
+      _motion.forward(),
+    ]);
+
+    // Load Super Admin feature flags for gated payments UI.
+    try {
+      await passengerGetIt<FeatureModulesService>().refresh(force: true);
+    } catch (_) {}
 
     try {
       await authBloc.stream
@@ -49,32 +81,13 @@ class _SplashPageState extends State<SplashPage>
                 state.status != AuthStatus.initial &&
                 state.status != AuthStatus.loading,
           )
-          .timeout(const Duration(seconds: 3));
-    } catch (_) {
-      // Auth check hung (network). Continue as logged out so UI never blanks.
-    }
+          .timeout(const Duration(seconds: 2));
+    } catch (_) {}
 
     if (!mounted || _navigated) return;
     _navigated = true;
 
     final authState = authBloc.state;
-    final onboardingDone = await isOnboardingComplete();
-    final localeSet =
-        passengerGetIt<SharedPreferences>().getString(AppConstants.localeKey) !=
-            null;
-
-    if (!mounted) return;
-
-    if (!localeSet) {
-      context.go('/language');
-      return;
-    }
-
-    if (!onboardingDone) {
-      context.go('/onboarding');
-      return;
-    }
-
     if (authState.status == AuthStatus.authenticated) {
       if (!isProfileComplete(authState.user)) {
         context.go('/profile-setup');
@@ -97,15 +110,42 @@ class _SplashPageState extends State<SplashPage>
             decoration: BoxDecoration(gradient: AppColors.heroGradient),
           ),
           FadeTransition(
-            opacity: CurvedAnimation(parent: _motion, curve: Curves.easeOut),
+            opacity: _fade,
             child: ScaleTransition(
-              scale: Tween<double>(begin: 0.94, end: 1).animate(
-                CurvedAnimation(parent: _motion, curve: Curves.easeOutCubic),
-              ),
+              scale: _scale,
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    Container(
+                      width: 112,
+                      height: 112,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(32),
+                        border: Border.all(
+                          color: AppColors.accent.withValues(alpha: 0.45),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.accent.withValues(alpha: 0.25),
+                            blurRadius: 28,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: Image.asset(
+                        AppImages.logo,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.local_taxi_rounded,
+                          size: 52,
+                          color: AppColors.accent,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 22),
                     Text(
                       'TaxiGo',
                       style:
@@ -122,15 +162,6 @@ class _SplashPageState extends State<SplashPage>
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(4),
                         gradient: AppColors.accentGradient,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    const SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        color: Colors.white70,
                       ),
                     ),
                   ],

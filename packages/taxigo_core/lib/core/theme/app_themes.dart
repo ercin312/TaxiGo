@@ -181,7 +181,7 @@ abstract final class AppThemes {
         elevation: 0,
         color: isLight ? AppColors.surfaceLight : AppColors.surfaceDark,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(22),
           side: BorderSide(
             color: colorScheme.outline.withValues(alpha: 0.35),
           ),

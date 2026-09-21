@@ -49,16 +49,22 @@ class FeatureModuleService
                 'default' => true,
             ],
             'card_payments' => [
-                'label' => 'Card Payments',
-                'description' => 'Allow card payment method (stub / iyzico driver).',
+                'label' => 'Card Payments (rides)',
+                'description' => 'Allow card as ride payment method (stub / iyzico).',
                 'category' => 'payments',
-                'default' => true,
+                'default' => false,
+            ],
+            'wallet_topup' => [
+                'label' => 'Wallet Top-Up',
+                'description' => 'Passengers can top up wallet with real payment (stub / PSP). Only visible when enabled.',
+                'category' => 'payments',
+                'default' => false,
             ],
             'withdrawals' => [
-                'label' => 'Driver Withdrawals',
-                'description' => 'Drivers can request wallet withdrawals from the app.',
+                'label' => 'Driver Payouts / Withdrawals',
+                'description' => 'Drivers can request bank payouts from earnings wallet. Only visible when enabled.',
                 'category' => 'payments',
-                'default' => true,
+                'default' => false,
             ],
             'rtdb_sync' => [
                 'label' => 'Realtime Tracking (RTDB)',
@@ -82,6 +88,18 @@ class FeatureModuleService
                 'label' => 'Share Trip',
                 'description' => 'Public live trip share link for passengers.',
                 'category' => 'safety',
+                'default' => true,
+            ],
+            'ride_comms' => [
+                'label' => 'Masked Call & Ride Chat',
+                'description' => 'In-ride private call + short messages without sharing phone numbers.',
+                'category' => 'safety',
+                'default' => true,
+            ],
+            'ride_receipts' => [
+                'label' => 'E-Receipts / Invoices',
+                'description' => 'Passengers can view and share e-receipts for completed rides (expense / hotels).',
+                'category' => 'payments',
                 'default' => true,
             ],
             'ride_expiry' => [

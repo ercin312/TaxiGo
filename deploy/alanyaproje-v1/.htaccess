@@ -1,0 +1,9 @@
+RewriteEngine On
+RewriteBase /taxigo/v1/
+
+# Keep real files (if any)
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+RewriteRule ^ index.php [L,QSA]

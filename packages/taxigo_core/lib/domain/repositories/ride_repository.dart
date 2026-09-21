@@ -5,6 +5,7 @@ import '../models/fare_estimate_model.dart';
 import '../models/rating_model.dart';
 import '../models/ride_bid_model.dart';
 import '../models/ride_model.dart';
+import '../models/ride_receipt_model.dart';
 
 abstract class RideRepository {
   Future<Either<String, FareEstimateModel>> estimateFare({
@@ -27,6 +28,10 @@ abstract class RideRepository {
     String? vehicleType,
     String? promoCode,
     double? offeredFare,
+    String productMode = 'taxi',
+    String matchMode = 'instant',
+    DateTime? scheduledAt,
+    String? passengerNote,
   });
 
   Future<Either<String, List<RideBidModel>>> getRideBids(int rideId);
@@ -58,4 +63,6 @@ abstract class RideRepository {
   });
 
   Future<Either<String, String>> shareTrip(int rideId);
+
+  Future<Either<String, RideReceiptModel>> getReceipt(int rideId);
 }

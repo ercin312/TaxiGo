@@ -16,7 +16,9 @@ class WithdrawalApiController extends Controller
     public function index(Request $request): JsonResponse
     {
         if (app(\App\Services\FeatureModuleService::class)->disabled('withdrawals')) {
-            return response()->json(['message' => 'Withdrawals module is disabled.'], 403);
+            return response()->json([
+                'message' => 'Withdrawals / driver payouts module is disabled by Super Admin.',
+            ], 403);
         }
 
         $driver = $request->user()->driver;
@@ -35,7 +37,9 @@ class WithdrawalApiController extends Controller
     public function store(Request $request): JsonResponse
     {
         if (app(\App\Services\FeatureModuleService::class)->disabled('withdrawals')) {
-            return response()->json(['message' => 'Withdrawals module is disabled.'], 403);
+            return response()->json([
+                'message' => 'Withdrawals / driver payouts module is disabled by Super Admin.',
+            ], 403);
         }
 
         $driver = $request->user()->driver;

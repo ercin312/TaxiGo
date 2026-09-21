@@ -12,3 +12,7 @@ Schedule::command('taxigo:expire-rides')
     ->everyMinute()
     ->withoutOverlapping();
 
+Schedule::command('taxigo:dispatch-scheduled')
+    ->everyMinute()
+    ->withoutOverlapping();
+

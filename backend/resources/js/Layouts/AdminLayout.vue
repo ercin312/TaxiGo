@@ -9,6 +9,8 @@ const page = usePage();
 
 const user = computed(() => page.props.auth?.user);
 
+const modules = computed(() => page.props.modules ?? {});
+
 const navigation = [
     { name: 'dashboard', href: '/admin', icon: '📊' },
     { name: 'users', href: '/admin/users', icon: '👥' },
@@ -18,14 +20,22 @@ const navigation = [
     { name: 'tariffs', href: '/admin/tariffs', icon: '💰' },
     { name: 'promos', href: '/admin/promos', icon: '🎟️' },
     { name: 'complaints', href: '/admin/complaints', icon: '⚠️' },
-    { name: 'withdrawals', href: '/admin/withdrawals', icon: '🏦' },
+    { name: 'withdrawals', href: '/admin/withdrawals', icon: '🏦', module: 'withdrawals' },
     { name: 'notifications', href: '/admin/notifications', icon: '🔔' },
     { name: 'settings', href: '/admin/settings', icon: '⚙️' },
     { name: 'modules', href: '/admin/modules', icon: '🧩', superAdminOnly: true },
 ];
 
 const visibleNavigation = computed(() =>
-    navigation.filter((item) => !item.superAdminOnly || user.value?.is_super_admin),
+    navigation.filter((item) => {
+        if (item.superAdminOnly && !user.value?.is_super_admin) {
+            return false;
+        }
+        if (item.module && !modules.value?.[item.module]) {
+            return false;
+        }
+        return true;
+    }),
 );
 
 function isActive(href) {

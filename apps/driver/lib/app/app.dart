@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:taxigo_core/taxigo_core.dart' as core;
 
 import '../di/locator.dart';
@@ -33,12 +32,7 @@ class TaxiGoDriverApp extends StatelessWidget {
             themeMode: ThemeMode.system,
             locale: languageState.locale,
             supportedLocales: core.SupportedLocales.locales,
-            localizationsDelegates: const [
-              core.AppLocalizations.delegate,
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
+            localizationsDelegates: core.TaxiGoLocalization.delegates,
             routerConfig: appRouter,
           );
         },

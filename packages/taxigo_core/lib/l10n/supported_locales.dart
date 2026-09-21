@@ -42,11 +42,11 @@ abstract final class SupportedLocales {
     flag: '🇷🇺',
   );
 
-  static const xh = SupportedLocale(
-    locale: Locale('xh'),
-    displayName: 'Karabakh Azerbaijani',
-    nativeName: 'Qarabağ azərbaycancası',
-    flag: '🇦🇿',
+  static const cnr = SupportedLocale(
+    locale: Locale('cnr'),
+    displayName: 'Montenegrin',
+    nativeName: 'Crnogorski',
+    flag: '🇲🇪',
   );
 
   static const ar = SupportedLocale(
@@ -57,7 +57,7 @@ abstract final class SupportedLocales {
     isRtl: true,
   );
 
-  static const List<SupportedLocale> all = [tr, en, ru, xh, ar];
+  static const List<SupportedLocale> all = [tr, en, cnr, ru, ar];
 
   /// Alias used by UI components.
   static List<SupportedLocale> get options => all;

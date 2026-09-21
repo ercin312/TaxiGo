@@ -26,7 +26,7 @@ HOW TO SIGN IN (no SMS / no Apple ID needed)
 PRE-POPULATED CONTENT
 • Both accounts have wallet balance (250 TRY)
 • Trip / ride history is pre-seeded (Account → Trip History / Ride History)
-• Driver account is approved with vehicle profile ready
+• Driver account is approved with vehicle profile ready (opens Driver Home, no KYC)
 • This build has no in-app Chats feature; use Trip History and Complaints for support-style content
 
 LOCATION

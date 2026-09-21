@@ -53,6 +53,13 @@ class LanguageBloc extends Bloc<LanguageEvent, LanguageState> {
       final locale = SupportedLocales.findByCode(code);
       if (locale != null) {
         emit(LanguageState(locale: locale));
+      } else {
+        // Removed / unknown locale (e.g. old Karabakh `xh`) → default.
+        await _prefs.setString(
+          AppConstants.localeKey,
+          SupportedLocales.defaultLocale.languageCode,
+        );
+        emit(const LanguageState(locale: SupportedLocales.defaultLocale));
       }
     }
   }

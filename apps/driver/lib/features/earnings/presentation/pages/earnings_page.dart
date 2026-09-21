@@ -2,10 +2,105 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:taxigo_core/taxigo_core.dart';
 
+import '../../../../di/locator.dart';
 import '../../application/earnings_bloc.dart';
 
-class EarningsPage extends StatelessWidget {
+class EarningsPage extends StatefulWidget {
   const EarningsPage({super.key});
+
+  @override
+  State<EarningsPage> createState() => _EarningsPageState();
+}
+
+class _EarningsPageState extends State<EarningsPage> {
+  @override
+  void initState() {
+    super.initState();
+    getIt<FeatureModulesService>().refresh(force: true).then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  Future<void> _showWithdrawDialog(
+    BuildContext context,
+    double balance,
+  ) async {
+    final l10n = AppLocalizations.of(context)!;
+    final amountController = TextEditingController(
+      text: balance > 20 ? '20' : balance.toStringAsFixed(0),
+    );
+    final bankController = TextEditingController();
+    final accountController = TextEditingController();
+    final holderController = TextEditingController();
+
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.withdrawalRequest),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${l10n.balanceLabel}: ${balance.toStringAsFixed(2)} ${AppConstants.currency}',
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(labelText: l10n.amount),
+              ),
+              TextField(
+                controller: bankController,
+                decoration: InputDecoration(labelText: l10n.bank),
+              ),
+              TextField(
+                controller: accountController,
+                decoration: InputDecoration(labelText: l10n.ibanAccount),
+              ),
+              TextField(
+                controller: holderController,
+                decoration: InputDecoration(labelText: l10n.accountHolder),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.send),
+          ),
+        ],
+      ),
+    );
+
+    if (submitted != true || !context.mounted) return;
+
+    final amount = double.tryParse(amountController.text.trim()) ?? 0;
+    final result = await getIt<WalletRepository>().requestWithdrawal(
+      amount: amount,
+      bankName: bankController.text.trim(),
+      accountNumber: accountController.text.trim(),
+      accountHolder: holderController.text.trim(),
+    );
+
+    if (!context.mounted) return;
+    result.fold(
+      (error) => ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      ),
+      (_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.withdrawalSubmitted)),
+        );
+        context.read<EarningsBloc>().add(const EarningsLoadRequested());
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,9 +129,12 @@ class EarningsPage extends StatelessWidget {
 
           return RefreshIndicator(
             onRefresh: () async {
-              context.read<EarningsBloc>().add(
-                    EarningsPeriodChanged(state.period),
-                  );
+              await getIt<FeatureModulesService>().refresh(force: true);
+              if (context.mounted) {
+                context.read<EarningsBloc>().add(
+                      EarningsPeriodChanged(state.period),
+                    );
+              }
             },
             child: ListView(
               padding: const EdgeInsets.all(16),
@@ -85,6 +183,23 @@ class EarningsPage extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 16),
+                if (getIt<FeatureModulesService>().withdrawals)
+                  PrimaryButton(
+                    label: l10n.withdrawCash,
+                    icon: Icons.account_balance_outlined,
+                    onPressed: () =>
+                        _showWithdrawDialog(context, state.walletBalance),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.mist.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(l10n.withdrawDisabled),
+                  ),
                 const SizedBox(height: 24),
                 Text(
                   l10n.rideHistory,

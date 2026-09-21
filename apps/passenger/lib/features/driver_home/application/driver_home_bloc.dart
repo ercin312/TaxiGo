@@ -126,8 +126,8 @@ class DriverHomeBloc extends Bloc<DriverHomeEvent, DriverHomeState> {
             permission == LocationPermission.deniedForever) {
           // App Review / simulator: don't dead-end — use Istanbul default.
           position = Position(
-            latitude: 41.0082,
-            longitude: 28.9784,
+            latitude: AppConstants.defaultLatitude,
+            longitude: AppConstants.defaultLongitude,
             timestamp: DateTime.now(),
             accuracy: 10,
             altitude: 0,

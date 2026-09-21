@@ -31,6 +31,15 @@ class RideMatchingService
                 $query->where('is_active', true)
                     ->where('vehicle_type', $vehicleType);
             })
+            ->whereDoesntHave('rides', function ($query) {
+                $query->whereIn('status', [
+                    'driver_assigned',
+                    'driver_arriving',
+                    'driver_arrived',
+                    'passenger_on_board',
+                    'in_progress',
+                ]);
+            })
             ->get();
 
         return $drivers

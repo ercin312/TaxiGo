@@ -50,6 +50,10 @@ class Ride extends Model
         'expires_at',
         'share_token',
         'share_expires_at',
+        'scheduled_at',
+        'product_mode',
+        'vehicle_type',
+        'passenger_note',
     ];
 
     protected function casts(): array
@@ -79,6 +83,7 @@ class Ride extends Model
             'settled_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'expires_at' => 'datetime',
+            'scheduled_at' => 'datetime',
             'share_expires_at' => 'datetime',
         ];
     }
@@ -106,6 +111,16 @@ class Ride extends Model
     public function rating(): HasOne
     {
         return $this->hasOne(RideRating::class);
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(RideMessage::class);
+    }
+
+    public function callSessions(): HasMany
+    {
+        return $this->hasMany(RideCallSession::class);
     }
 
     public function promoUsage(): HasOne

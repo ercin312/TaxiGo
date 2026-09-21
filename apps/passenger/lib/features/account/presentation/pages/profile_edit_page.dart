@@ -37,6 +37,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
   Future<void> _save() async {
     setState(() => _loading = true);
+    final l10n = AppLocalizations.of(context)!;
     final result = await passengerGetIt<UserRepository>().updateProfile(
       name: _nameController.text.trim(),
       email: _emailController.text.trim().isEmpty
@@ -52,7 +53,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       (user) {
         context.read<AuthBloc>().add(const AuthCheckRequested());
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profil güncellendi')),
+          SnackBar(content: Text(l10n.profileUpdated)),
         );
         context.pop();
       },

@@ -88,6 +88,7 @@ class MapsController extends Controller
             'query' => ['required', 'string', 'min:2', 'max:200'],
             'latitude' => ['sometimes', 'numeric'],
             'longitude' => ['sometimes', 'numeric'],
+            'language' => ['sometimes', 'string', 'max:10'],
         ]);
 
         $apiKey = config('taxigo.google_maps_api_key');
@@ -101,13 +102,14 @@ class MapsController extends Controller
         $params = [
             'input' => $validated['query'],
             'key' => $apiKey,
-            'language' => 'tr',
+            'language' => $validated['language'] ?? 'en',
+            'components' => 'country:'.config('taxigo.service_country', 'me'),
         ];
 
-        if (isset($validated['latitude'], $validated['longitude'])) {
-            $params['location'] = $validated['latitude'].','.$validated['longitude'];
-            $params['radius'] = 30000;
-        }
+        $lat = $validated['latitude'] ?? config('taxigo.default_latitude', 42.4304);
+        $lng = $validated['longitude'] ?? config('taxigo.default_longitude', 19.2594);
+        $params['location'] = $lat.','.$lng;
+        $params['radius'] = (int) config('taxigo.places_search_radius_meters', 150000);
 
         $response = Http::timeout(15)->get(
             'https://maps.googleapis.com/maps/api/place/autocomplete/json',

@@ -5,11 +5,13 @@ import '../../core/constants/api_config.dart';
 import '../../data/network/api_client.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/driver_repository_impl.dart';
+import '../../data/repositories/ride_comms_repository_impl.dart';
 import '../../data/repositories/ride_repository_impl.dart';
 import '../../data/repositories/user_repository_impl.dart';
 import '../../data/repositories/wallet_repository_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/driver_repository.dart';
+import '../../domain/repositories/ride_comms_repository.dart';
 import '../../domain/repositories/ride_repository.dart';
 import '../../domain/repositories/user_repository.dart';
 import '../../domain/repositories/wallet_repository.dart';
@@ -22,6 +24,7 @@ import '../../services/device_registration_service.dart';
 import '../../services/feature_modules_service.dart';
 import '../../services/maps_service.dart';
 import '../../services/saved_address_service.dart';
+import '../../services/recent_places_service.dart';
 
 final GetIt locator = GetIt.instance;
 
@@ -62,6 +65,12 @@ Future<void> setupLocator({String? baseUrl}) async {
   locator.registerLazySingleton<WalletRepository>(
     () => WalletRepositoryImpl(locator<ApiClient>(), locator<AuthRepository>()),
   );
+  locator.registerLazySingleton<RideCommsRepository>(
+    () => RideCommsRepositoryImpl(
+      locator<ApiClient>(),
+      locator<AuthRepository>(),
+    ),
+  );
 
   locator.registerLazySingleton<RtdbService>(() => RtdbService());
   locator.registerLazySingleton<DeviceRegistrationService>(
@@ -79,6 +88,9 @@ Future<void> setupLocator({String? baseUrl}) async {
   );
   locator.registerLazySingleton<SavedAddressService>(
     () => SavedAddressService(prefs),
+  );
+  locator.registerLazySingleton<RecentPlacesService>(
+    () => RecentPlacesService(prefs),
   );
   locator.registerLazySingleton<FeatureModulesService>(
     () => FeatureModulesService(locator<ApiClient>()),

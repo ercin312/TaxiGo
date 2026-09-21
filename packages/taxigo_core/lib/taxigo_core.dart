@@ -17,6 +17,7 @@ export 'data/repositories/driver_repository_impl.dart';
 export 'data/repositories/ride_repository_impl.dart';
 export 'data/repositories/user_repository_impl.dart';
 export 'data/repositories/wallet_repository_impl.dart';
+export 'data/repositories/ride_comms_repository_impl.dart';
 
 export 'domain/enums/document_type.dart';
 export 'domain/enums/driver_approval_status.dart';
@@ -31,12 +32,15 @@ export 'domain/models/rating_model.dart';
 export 'domain/models/ride_location_model.dart';
 export 'domain/models/ride_bid_model.dart';
 export 'domain/models/ride_model.dart';
+export 'domain/models/ride_receipt_model.dart';
 export 'domain/models/user_model.dart';
 export 'domain/models/wallet_model.dart';
 export 'domain/models/withdrawal_model.dart';
+export 'domain/models/ride_comms_models.dart';
 export 'domain/repositories/auth_repository.dart';
 export 'domain/repositories/driver_repository.dart';
 export 'domain/repositories/ride_repository.dart';
+export 'domain/repositories/ride_comms_repository.dart';
 export 'domain/repositories/user_repository.dart';
 export 'domain/repositories/wallet_repository.dart';
 
@@ -60,10 +64,13 @@ export 'services/nearby_drivers_feed.dart';
 export 'services/nearby_fleet_simulator.dart';
 export 'services/maps_service.dart';
 export 'services/saved_address_service.dart';
+export 'services/recent_places_service.dart';
 export 'l10n/app_localizations.dart';
+export 'l10n/localization_delegates.dart';
 export 'l10n/supported_locales.dart';
 
 export 'widgets/auth_scaffold.dart';
 export 'widgets/common_widgets.dart';
 export 'widgets/error_view.dart';
 export 'widgets/primary_button.dart';
+export 'widgets/ride_comms_bar.dart';

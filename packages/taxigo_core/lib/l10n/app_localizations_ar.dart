@@ -457,67 +457,598 @@ class AppLocalizationsAr extends AppLocalizations {
   String get viewApplicationStatus => 'عرض حالة الطلب';
 
   @override
-  String get otpInAppTitle => 'Your verification code';
+  String get otpInAppTitle => 'رمز التحقق الخاص بك';
 
   @override
-  String get otpInAppHint => 'Tap the code to fill automatically.';
+  String get otpInAppHint => 'انقر على الرمز للتعبئة تلقائياً.';
 
   @override
-  String get otpNotificationTitle => 'TaxiGo Verification';
+  String get otpNotificationTitle => 'تحقق TaxiGo';
 
   @override
   String otpNotificationBody(String code) {
-    return 'Your login code: $code';
+    return 'رمز الدخول: $code';
   }
 
   @override
-  String get otpNotificationSent => 'Verification code sent as a notification.';
+  String get otpNotificationSent => 'تم إرسال رمز التحقق كإشعار.';
 
   @override
-  String get offerYourFare => 'Offer Your Fare';
+  String get offerYourFare => 'قدّم سعرك';
 
   @override
-  String get recommendedFareMinimum => 'Recommended minimum fare';
+  String get recommendedFareMinimum => 'الحد الأدنى الموصى به';
 
   @override
-  String get createRequest => 'Create Request';
+  String get createRequest => 'إنشاء طلب';
 
   @override
-  String get lookingForDrivers => 'Looking for nearby drivers';
+  String get lookingForDrivers => 'البحث عن سائقين قريبين';
 
   @override
-  String get availableDrivers => 'Available drivers';
+  String get availableDrivers => 'السائقون المتاحون';
 
   @override
-  String get updateOffer => 'Update Offer';
+  String get updateOffer => 'تحديث العرض';
 
   @override
-  String get currentFare => 'Current fare';
+  String get currentFare => 'السعر الحالي';
 
   @override
-  String get offeredFare => 'Offered fare';
+  String get offeredFare => 'السعر المعروض';
 
   @override
-  String get acceptBid => 'Accept';
+  String get acceptBid => 'قبول';
 
   @override
-  String get rejectBid => 'Reject';
+  String get rejectBid => 'رفض';
 
   @override
-  String get counterBid => 'Counter Offer';
+  String get counterBid => 'عرض مضاد';
 
   @override
-  String get bidSubmitted =>
-      'Your bid was sent. Waiting for passenger approval.';
+  String get bidSubmitted => 'تم إرسال عرضك. بانتظار موافقة الراكب.';
 
   @override
-  String get passengerOffer => 'Passenger offer';
+  String get passengerOffer => 'عرض الراكب';
 
   @override
-  String get noBidsYet => 'No driver bids yet. You can increase your offer.';
+  String get noBidsYet => 'لا توجد عروض سائقين بعد. يمكنك زيادة عرضك.';
 
   @override
   String secondsLeft(int seconds) {
-    return '${seconds}s left';
+    return 'متبقي $secondsث';
   }
+
+  @override
+  String get locationUnavailableMapSelect =>
+      'الموقع غير متاح — اختر على الخريطة';
+
+  @override
+  String get podgoricaMontenegro => 'بودغوريتسا، الجبل الأسود';
+
+  @override
+  String get saveAddress => 'حفظ العنوان';
+
+  @override
+  String get addressLabelHint => 'التسمية (المنزل، العمل...)';
+
+  @override
+  String get locating => 'جاري تحديد الموقع...';
+
+  @override
+  String get refreshLocation => 'تحديث الموقع';
+
+  @override
+  String get searchDestinationHintMe =>
+      'ابحث في الجبل الأسود (مثل بودفا، كوتور...)';
+
+  @override
+  String get searchPickupHintMe => 'ابحث عن نقطة الالتقاط في الجبل الأسود...';
+
+  @override
+  String get tapMapDropoff => 'المس الخريطة: الوجهة';
+
+  @override
+  String get tapMapPickup => 'المس الخريطة: الالتقاط';
+
+  @override
+  String get drawingRoute => 'جاري رسم المسار…';
+
+  @override
+  String get taxiComing => 'سيارتكم في الطريق';
+
+  @override
+  String get tripInProgressShort => 'الرحلة جارية';
+
+  @override
+  String get matchedTaxiComing => 'التاكسي المتفق عليه في الطريق إليك';
+
+  @override
+  String get goingToDestination => 'في الطريق إلى الوجهة';
+
+  @override
+  String get taxiGeneric => 'تاكسي';
+
+  @override
+  String get driverGeneric => 'سائق';
+
+  @override
+  String get onlyYourTaxiOnMap => 'تاكسيك فقط على الخريطة';
+
+  @override
+  String get youAreHere => 'أنت هنا';
+
+  @override
+  String get pickupPoint => 'نقطة الالتقاط';
+
+  @override
+  String get yourTaxi => 'تاكسيك';
+
+  @override
+  String get camera => 'الكاميرا';
+
+  @override
+  String get gallery => 'المعرض';
+
+  @override
+  String get vehicleMake => 'العلامة';
+
+  @override
+  String get vehicleMakeHint => 'مثال Toyota';
+
+  @override
+  String get vehicleModel => 'الطراز';
+
+  @override
+  String get vehicleModelHint => 'مثال Corolla';
+
+  @override
+  String get vehicleYear => 'سنة الطراز';
+
+  @override
+  String get vehicleYearHint => 'مثال 2020';
+
+  @override
+  String get vehicleColor => 'اللون';
+
+  @override
+  String get vehicleColorHint => 'مثال أبيض';
+
+  @override
+  String get vehiclePlate => 'اللوحة';
+
+  @override
+  String get vehiclePlateHint => 'مثال PG AB 01';
+
+  @override
+  String get returnToPassengerMode => 'العودة إلى وضع الراكب';
+
+  @override
+  String get withdrawalRequest => 'طلب سحب';
+
+  @override
+  String get balanceLabel => 'الرصيد';
+
+  @override
+  String get amount => 'المبلغ';
+
+  @override
+  String get bank => 'البنك';
+
+  @override
+  String get ibanAccount => 'IBAN / الحساب';
+
+  @override
+  String get accountHolder => 'صاحب الحساب';
+
+  @override
+  String get send => 'إرسال';
+
+  @override
+  String get withdrawalSubmitted => 'تم إرسال طلب السحب.';
+
+  @override
+  String get profileUpdated => 'تم تحديث الملف الشخصي';
+
+  @override
+  String get shareLinkCopied => 'تم نسخ رابط المشاركة';
+
+  @override
+  String get homeLabel => 'المنزل';
+
+  @override
+  String get savedLabel => 'محفوظ';
+
+  @override
+  String get dropoffShort => 'الوجهة';
+
+  @override
+  String get taxiComingToYou => 'سيارتكم في الطريق إليك';
+
+  @override
+  String get headingToDestination => 'في الطريق إلى الوجهة…';
+
+  @override
+  String get boardOnlyThisVehicle => 'اركب هذه السيارة فقط';
+
+  @override
+  String pickupWithAddress(String address) {
+    return 'الالتقاط: $address';
+  }
+
+  @override
+  String get vehicleInfoTitle => 'بيانات المركبة';
+
+  @override
+  String get vehicleInfoSubtitle =>
+      'أدخل بيانات المركبة وارفع المستندات المطلوبة للتبديل إلى وضع التاكسي.';
+
+  @override
+  String fieldRequired(String field) {
+    return '$field مطلوب';
+  }
+
+  @override
+  String get validYearRequired => 'أدخل سنة صالحة';
+
+  @override
+  String get documentsUnderReviewHint =>
+      'سيتم فتح وضع التاكسي بعد مراجعة مستنداتك. مطلوب موافقة المسؤول.';
+
+  @override
+  String get navHome => 'الرئيسية';
+
+  @override
+  String get navHistory => 'السجل';
+
+  @override
+  String get navAccount => 'حسابي';
+
+  @override
+  String greetingMorning(String name) {
+    return 'صباح الخير $name، هيا ننطلق!';
+  }
+
+  @override
+  String greetingAfternoon(String name) {
+    return 'مساء الخير $name، هيا ننطلق!';
+  }
+
+  @override
+  String greetingEvening(String name) {
+    return 'مساء الخير $name، هيا ننطلق!';
+  }
+
+  @override
+  String greetingNight(String name) {
+    return 'تصبح على خير $name، هيا ننطلق!';
+  }
+
+  @override
+  String get favoriteLocations => 'الأماكن المفضلة';
+
+  @override
+  String get favoriteLocationsHint => 'Save important places for quick access';
+
+  @override
+  String get workLabel => 'العمل';
+
+  @override
+  String get othersLabel => 'أخرى';
+
+  @override
+  String get tapToAddAddress => 'Tap to add address';
+
+  @override
+  String get addMoreFavorites => 'Add more';
+
+  @override
+  String get favoritesTip =>
+      'Tip: Save addresses you visit often for faster booking.';
+
+  @override
+  String get selectFromMap => 'اختر من الخريطة';
+
+  @override
+  String get searchPlace => 'Search place';
+
+  @override
+  String get searchRoute => 'Search route';
+
+  @override
+  String get arrivalAddress => 'عنوان الوجهة';
+
+  @override
+  String get productTaxi => 'تاكسي';
+
+  @override
+  String get productTransfer => 'نقل';
+
+  @override
+  String get vehicleVan => 'Van';
+
+  @override
+  String get addNote => 'Add note';
+
+  @override
+  String get coupon => 'Coupon';
+
+  @override
+  String get callTaxiGo => 'اطلب TaxiGo';
+
+  @override
+  String get scheduleRide => 'Schedule';
+
+  @override
+  String get discoverYourDriver => 'اكتشف سائقك';
+
+  @override
+  String get reservationDetails => 'Reservation details';
+
+  @override
+  String get tripDetails => 'Trip details';
+
+  @override
+  String get payInVehicle => 'Pay in vehicle';
+
+  @override
+  String get manageTrip => 'Manage trip';
+
+  @override
+  String get outOfServiceTitle => 'Your location is outside our service area';
+
+  @override
+  String get outOfServiceBody =>
+      'Set a pickup point within Montenegro to continue.';
+
+  @override
+  String get historyCompleted => 'مكتملة';
+
+  @override
+  String get historyUpcoming => 'قادمة';
+
+  @override
+  String get historyCancelled => 'ملغاة';
+
+  @override
+  String get noUpcomingTrips => 'No upcoming trips';
+
+  @override
+  String get noUpcomingTripsHint => 'You have no scheduled trips.';
+
+  @override
+  String get createNewTrip => 'Create new trip';
+
+  @override
+  String get upcomingTip => 'Tip: Your scheduled trips will appear here.';
+
+  @override
+  String get noCompletedTrips => 'No completed trips yet';
+
+  @override
+  String get noCancelledTrips => 'No cancelled trips';
+
+  @override
+  String get accountSection => 'Your account';
+
+  @override
+  String get accountSectionHint => 'Manage profile and settings';
+
+  @override
+  String get activitySection => 'Activity';
+
+  @override
+  String get activitySectionHint => 'Track activity and history';
+
+  @override
+  String get settingsSection => 'Settings';
+
+  @override
+  String get settingsSectionHint => 'App preferences and profile options';
+
+  @override
+  String get personalInfo => 'Personal information';
+
+  @override
+  String get notifications => 'Notifications';
+
+  @override
+  String get notificationsHint => 'View your notifications';
+
+  @override
+  String get upcomingTrips => 'Upcoming';
+
+  @override
+  String get upcomingTripsHint => 'Your scheduled trips';
+
+  @override
+  String get tripHistoryHint => 'Your past trips';
+
+  @override
+  String get help => 'مساعدة';
+
+  @override
+  String totalTrips(int count) {
+    return 'Total trips: $count';
+  }
+
+  @override
+  String seatsCount(int count) {
+    return '$count seats';
+  }
+
+  @override
+  String etaMinutesShort(int minutes) {
+    return '$minutes mins';
+  }
+
+  @override
+  String get fareMayVary => 'Fare may vary with traffic.';
+
+  @override
+  String get noteHint => 'Note for driver';
+
+  @override
+  String get rideScheduled => 'Ride scheduled';
+
+  @override
+  String get swapLocations => 'Swap';
+
+  @override
+  String get recentDestinations => 'Recent destinations';
+
+  @override
+  String get noRecentDestinations => 'Recent places will appear here';
+
+  @override
+  String get searchResults => 'Search results';
+
+  @override
+  String minutesElapsed(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String get password => 'كلمة المرور';
+
+  @override
+  String get rolePassenger => 'راكب';
+
+  @override
+  String get roleDriver => 'سائق';
+
+  @override
+  String get continueWithGoogle => 'المتابعة مع Google';
+
+  @override
+  String topUpConfirm(String amount, String currency) {
+    return 'شحن المحفظة بمبلغ $amount $currency؟';
+  }
+
+  @override
+  String get topUpSuccess => 'تم شحن المحفظة بنجاح.';
+
+  @override
+  String get topUpHint =>
+      'اختر المبلغ. تتم المعالجة عند تفعيل المشرف العام للشحن.';
+
+  @override
+  String get topUpDisabled => 'شحن المحفظة معطل حالياً.';
+
+  @override
+  String get withdrawDisabled => 'مدفوعات السائق معطلة حالياً.';
+
+  @override
+  String get withdrawCash => 'سحب';
+
+  @override
+  String get maskedCall => 'اتصال خاص';
+
+  @override
+  String get rideChat => 'رسالة';
+
+  @override
+  String get rideChatHint => 'رسالة قصيرة…';
+
+  @override
+  String get rideChatPrivacyHint =>
+      'الأرقام تبقى خاصة. استخدم الردود السريعة أو ملاحظة قصيرة.';
+
+  @override
+  String get maskedCallDialing => 'جارٍ الاتصال عبر رقم خاص…';
+
+  @override
+  String get maskedCallRequested => 'تم طلب اتصال خاص. تم إشعار الطرف الآخر.';
+
+  @override
+  String get chatTplWhereAreYou => 'أين أنت؟';
+
+  @override
+  String get chatTplImOutside => 'أنا في الخارج';
+
+  @override
+  String get chatTplAtTheDoor => 'عند الباب';
+
+  @override
+  String get chatTplLuggage => 'معي أمتعة';
+
+  @override
+  String get chatTplRunningLate => 'سأتأخر دقيقتين';
+
+  @override
+  String get chatTplCantFind => 'لا أجدك';
+
+  @override
+  String get chatTplOk => 'حسناً';
+
+  @override
+  String get chatTplOnMyWay => 'في الطريق';
+
+  @override
+  String get matchModeInstant => 'اطلب TaxiGo';
+
+  @override
+  String get matchModeBidding => 'عرض / مزايدة';
+
+  @override
+  String get matchModeInstantDesc =>
+      'يُعيَّن أقرب سائق متاح تلقائياً بسعر ثابت.';
+
+  @override
+  String get matchModeBiddingDesc =>
+      'يمكن للسائقين تقديم عروض مضادة. أنت تختار.';
+
+  @override
+  String get fixedPriceTransfer => 'سعر نقل ثابت';
+
+  @override
+  String get instantMatchHint =>
+      'سعر ثابت · يُعيَّن أقرب سائق فوراً عند التوفر.';
+
+  @override
+  String get requestBids => 'اطلب عروضاً';
+
+  @override
+  String get yourOffer => 'عرضك';
+
+  @override
+  String get rideAgain => 'اطلب مجدداً';
+
+  @override
+  String get viewEReceipt => 'عرض الإيصال';
+
+  @override
+  String get eReceipt => 'إيصال إلكتروني';
+
+  @override
+  String get eReceiptBadge => 'إيصال';
+
+  @override
+  String get shareReceipt => 'مشاركة الإيصال';
+
+  @override
+  String get receiptCopied => 'تم نسخ الإيصال.';
+
+  @override
+  String get receiptExpenseHint =>
+      'استخدم هذا الإيصال للفنادق أو رحلات العمل أو المصاريف.';
+
+  @override
+  String get tripReference => 'مرجع الرحلة';
+
+  @override
+  String get completedAt => 'اكتملت';
+
+  @override
+  String get subtotal => 'المجموع الفرعي';
+
+  @override
+  String get discount => 'خصم';
+
+  @override
+  String get total => 'الإجمالي';
+
+  @override
+  String get taxId => 'الرقم الضريبي';
 }

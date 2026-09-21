@@ -9,6 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:taxigo_core/taxigo_core.dart';
 
 import '../../../../di/locator.dart';
+import '../../../shell/presentation/widgets/section_header.dart';
 import '../../application/booking_bloc.dart';
 
 class DestinationPage extends StatefulWidget {
@@ -19,37 +20,43 @@ class DestinationPage extends StatefulWidget {
 }
 
 class _DestinationPageState extends State<DestinationPage> {
-  final _searchController = TextEditingController();
-  final _searchFocus = FocusNode();
+  final _pickupController = TextEditingController();
+  final _dropoffController = TextEditingController();
+  final _pickupFocus = FocusNode();
+  final _dropoffFocus = FocusNode();
   GoogleMapController? _mapController;
   LatLng? _pickup;
   LatLng? _dropoff;
   String _pickupAddress = '';
   String _dropoffAddress = '';
-  bool _selectingDropoff = true;
+  bool _editingPickup = false;
+  bool _showMapPicker = false;
   List<PlacePrediction> _predictions = [];
   List<SavedAddress> _saved = [];
+  List<RecentPlace> _recents = [];
   Timer? _debounce;
   bool _searching = false;
   bool _locating = true;
-  List<LatLng> _routePoints = [];
-  bool _loadingRoute = false;
 
   @override
   void initState() {
     super.initState();
     _saved = passengerGetIt<SavedAddressService>().list();
+    _recents = passengerGetIt<RecentPlacesService>().list();
     MapMarkerIcons.ensureLoaded().then((_) {
       if (mounted) setState(() {});
     });
     _initPickup();
+    _dropoffFocus.requestFocus();
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
-    _searchController.dispose();
-    _searchFocus.dispose();
+    _pickupController.dispose();
+    _dropoffController.dispose();
+    _pickupFocus.dispose();
+    _dropoffFocus.dispose();
     _mapController?.dispose();
     super.dispose();
   }
@@ -61,7 +68,6 @@ class _DestinationPageState extends State<DestinationPage> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
-
       Position? position;
       if (permission != LocationPermission.denied &&
           permission != LocationPermission.deniedForever) {
@@ -76,90 +82,36 @@ class _DestinationPageState extends State<DestinationPage> {
           position = await Geolocator.getLastKnownPosition();
         }
       }
-
       final pickup = position != null
           ? LatLng(position.latitude, position.longitude)
-          : null;
-      if (pickup == null) {
-        if (!mounted) return;
-        setState(() {
-          _locating = false;
-          _pickupAddress = 'Konum alınamadı — haritadan seçin';
-        });
-        return;
-      }
+          : const LatLng(
+              AppConstants.defaultLatitude,
+              AppConstants.defaultLongitude,
+            );
       final address = await _reverseGeocode(pickup);
       if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
         _pickup = pickup;
-        _pickupAddress = address.isEmpty ? 'Mevcut konum' : address;
+        _pickupAddress = address.isEmpty
+            ? (position != null
+                ? l10n.currentLocation
+                : l10n.podgoricaMontenegro)
+            : address;
+        _pickupController.text = _pickupAddress;
         _locating = false;
       });
-      await _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(pickup, 15),
-      );
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _locating = false;
         if (_pickupAddress.isEmpty) {
-          _pickupAddress = 'Konum alınamadı — haritadan seçin';
+          _pickupAddress =
+              AppLocalizations.of(context)!.locationUnavailableMapSelect;
+          _pickupController.text = _pickupAddress;
         }
       });
     }
-  }
-
-  Future<void> _refreshRoadRoute() async {
-    final pickup = _pickup;
-    final dropoff = _dropoff;
-    if (pickup == null || dropoff == null) {
-      setState(() => _routePoints = []);
-      return;
-    }
-    setState(() => _loadingRoute = true);
-    final result = await passengerGetIt<MapsService>().getDirections(
-      originLat: pickup.latitude,
-      originLng: pickup.longitude,
-      destinationLat: dropoff.latitude,
-      destinationLng: dropoff.longitude,
-    );
-    if (!mounted) return;
-    final points = result.fold(
-      (_) => <LatLng>[pickup, dropoff],
-      (directions) =>
-          directions.points.length >= 2 ? directions.points : [pickup, dropoff],
-    );
-    setState(() {
-      _routePoints = points;
-      _loadingRoute = false;
-    });
-    await _fitRoute();
-  }
-
-  Future<void> _fitRoute() async {
-    final controller = _mapController;
-    if (controller == null || _routePoints.length < 2) return;
-    var minLat = _routePoints.first.latitude;
-    var maxLat = minLat;
-    var minLng = _routePoints.first.longitude;
-    var maxLng = minLng;
-    for (final p in _routePoints) {
-      if (p.latitude < minLat) minLat = p.latitude;
-      if (p.latitude > maxLat) maxLat = p.latitude;
-      if (p.longitude < minLng) minLng = p.longitude;
-      if (p.longitude > maxLng) maxLng = p.longitude;
-    }
-    try {
-      await controller.animateCamera(
-        CameraUpdate.newLatLngBounds(
-          LatLngBounds(
-            southwest: LatLng(minLat, minLng),
-            northeast: LatLng(maxLat, maxLng),
-          ),
-          64,
-        ),
-      );
-    } catch (_) {}
   }
 
   Future<String> _reverseGeocode(LatLng point) async {
@@ -170,16 +122,16 @@ class _DestinationPageState extends State<DestinationPage> {
       );
       if (places.isEmpty) return '${point.latitude}, ${point.longitude}';
       final p = places.first;
-          return [p.street, p.subLocality, p.locality, p.country]
-              .whereType<String>()
-              .where((e) => e.isNotEmpty)
-              .join(', ');
+      return [p.street, p.subLocality, p.locality, p.country]
+          .whereType<String>()
+          .where((e) => e.isNotEmpty)
+          .join(', ');
     } catch (_) {
       return '${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}';
     }
   }
 
-  void _onSearchChanged(String value) {
+  void _onQueryChanged(String value) {
     _debounce?.cancel();
     if (value.trim().length < 2) {
       setState(() {
@@ -193,8 +145,9 @@ class _DestinationPageState extends State<DestinationPage> {
       setState(() => _searching = true);
       final result = await passengerGetIt<MapsService>().autocomplete(
         query: value.trim(),
-        latitude: _pickup?.latitude,
-        longitude: _pickup?.longitude,
+        latitude: _pickup?.latitude ?? AppConstants.defaultLatitude,
+        longitude: _pickup?.longitude ?? AppConstants.defaultLongitude,
+        languageCode: Localizations.localeOf(context).languageCode,
       );
       if (!mounted) return;
       result.fold(
@@ -216,102 +169,168 @@ class _DestinationPageState extends State<DestinationPage> {
     if (!mounted) return;
     await details.fold(
       (error) async {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error)));
       },
       (place) async {
         final point = LatLng(place.latitude, place.longitude);
         final address =
             place.address.isNotEmpty ? place.address : prediction.description;
+        final name = place.name ?? prediction.mainText ?? address;
         setState(() {
-          _searchController.clear();
           _predictions = [];
-          if (_selectingDropoff) {
-            _dropoff = point;
-            _dropoffAddress = address;
-          } else {
+          if (_editingPickup) {
             _pickup = point;
             _pickupAddress = address;
+            _pickupController.text = address;
+          } else {
+            _dropoff = point;
+            _dropoffAddress = address;
+            _dropoffController.text = address;
           }
         });
-        _searchFocus.unfocus();
-        await _refreshRoadRoute();
-        if (_dropoff == null) {
-          await _mapController?.animateCamera(
-            CameraUpdate.newLatLngZoom(point, 15),
-          );
-        }
+        await passengerGetIt<RecentPlacesService>().add(
+          RecentPlace(
+            id: prediction.placeId,
+            name: name,
+            address: address,
+            latitude: place.latitude,
+            longitude: place.longitude,
+          ),
+        );
+        setState(() => _recents = passengerGetIt<RecentPlacesService>().list());
+        _pickupFocus.unfocus();
+        _dropoffFocus.unfocus();
       },
     );
   }
 
-  Future<void> _onMapTap(LatLng point) async {
-    final address = await _reverseGeocode(point);
+  void _swap() {
     setState(() {
-      if (_selectingDropoff) {
-        _dropoff = point;
-        _dropoffAddress = address;
-      } else {
-        _pickup = point;
-        _pickupAddress = address;
-      }
+      final p = _pickup;
+      final pa = _pickupAddress;
+      _pickup = _dropoff;
+      _pickupAddress = _dropoffAddress;
+      _dropoff = p;
+      _dropoffAddress = pa;
+      _pickupController.text = _pickupAddress;
+      _dropoffController.text = _dropoffAddress;
     });
-    await _refreshRoadRoute();
   }
 
   void _applySaved(SavedAddress saved) {
     final point = LatLng(saved.latitude, saved.longitude);
     setState(() {
-      if (_selectingDropoff) {
-        _dropoff = point;
-        _dropoffAddress = saved.address;
-      } else {
+      if (_editingPickup) {
         _pickup = point;
         _pickupAddress = saved.address;
+        _pickupController.text = saved.address;
+      } else {
+        _dropoff = point;
+        _dropoffAddress = saved.address;
+        _dropoffController.text = saved.address;
       }
     });
-    _refreshRoadRoute();
   }
 
-  Future<void> _saveCurrentDropoff() async {
-    if (_dropoff == null || _dropoffAddress.isEmpty) return;
-    final labelController = TextEditingController(text: 'Ev');
-    final ok = await showDialog<bool>(
+  SavedAddress? _byLabel(String label) {
+    final lower = label.toLowerCase();
+    for (final s in _saved) {
+      if (s.label.toLowerCase() == lower ||
+          s.id == lower ||
+          s.id == 'home' && lower == 'home' ||
+          s.id == 'work' && lower == 'work') {
+        return s;
+      }
+    }
+    // Prefer id-based home/work slots.
+    for (final s in _saved) {
+      if (s.id == label) return s;
+    }
+    return null;
+  }
+
+  Future<void> _onMapTap(LatLng point) async {
+    final address = await _reverseGeocode(point);
+    setState(() {
+      if (_editingPickup) {
+        _pickup = point;
+        _pickupAddress = address;
+        _pickupController.text = address;
+      } else {
+        _dropoff = point;
+        _dropoffAddress = address;
+        _dropoffController.text = address;
+      }
+    });
+  }
+
+  Future<void> _showOutOfServiceDialog() async {
+    final l10n = AppLocalizations.of(context)!;
+    await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Adresi kaydet'),
-        content: TextField(
-          controller: labelController,
-          decoration: const InputDecoration(labelText: 'Etiket (Ev, İş...)'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Text(l10n.outOfServiceTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(l10n.outOfServiceBody),
+            const SizedBox(height: 16),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.flight, color: AppColors.ink),
+              title: Text(AppConstants.podgoricaAirportLabel),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() {
+                  _pickup = const LatLng(
+                    AppConstants.podgoricaAirportLat,
+                    AppConstants.podgoricaAirportLng,
+                  );
+                  _pickupAddress = AppConstants.podgoricaAirportLabel;
+                  _pickupController.text = _pickupAddress;
+                });
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.flight, color: AppColors.ink),
+              title: Text(AppConstants.tivatAirportLabel),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() {
+                  _pickup = const LatLng(
+                    AppConstants.tivatAirportLat,
+                    AppConstants.tivatAirportLng,
+                  );
+                  _pickupAddress = AppConstants.tivatAirportLabel;
+                  _pickupController.text = _pickupAddress;
+                });
+              },
+            ),
+          ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('İptal'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Kaydet'),
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.ok),
           ),
         ],
       ),
     );
-    if (ok != true || !mounted) return;
-    await passengerGetIt<SavedAddressService>().save(
-      SavedAddress(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        label: labelController.text.trim().isEmpty
-            ? 'Kayıtlı'
-            : labelController.text.trim(),
-        address: _dropoffAddress,
-        latitude: _dropoff!.latitude,
-        longitude: _dropoff!.longitude,
-      ),
-    );
-    setState(() => _saved = passengerGetIt<SavedAddressService>().list());
   }
 
   void _continue(BuildContext context) {
     if (_pickup == null || _dropoff == null) return;
+    if (!AppConstants.isInsideServiceArea(
+      _pickup!.latitude,
+      _pickup!.longitude,
+    )) {
+      _showOutOfServiceDialog();
+      return;
+    }
     context.read<BookingBloc>().add(
           BookingLocationsSet(
             pickupLat: _pickup!.latitude,
@@ -329,268 +348,240 @@ class _DestinationPageState extends State<DestinationPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+    final home = _byLabel('home') ?? _byLabel(l10n.homeLabel);
+    final work = _byLabel('work') ?? _byLabel(l10n.workLabel);
 
     return BlocProvider(
       create: (_) => passengerGetIt<BookingBloc>(),
       child: Builder(
         builder: (context) {
           return Scaffold(
-            appBar: AppBar(title: Text(l10n.searchDestination)),
+            backgroundColor: AppColors.backgroundLight,
+            appBar: AppBar(
+              title: Text(l10n.searchDestination),
+              backgroundColor: AppColors.backgroundLight,
+            ),
             body: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: Material(
-                    color: AppColors.glass,
-                    borderRadius: BorderRadius.circular(14),
-                    child: ListTile(
-                      leading: _locating
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.my_location,
-                              color: AppColors.success),
-                      title: Text(l10n.pickup),
-                      subtitle: Text(
-                        _pickupAddress.isEmpty
-                            ? 'Konum alınıyor...'
-                            : _pickupAddress,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: IconButton(
-                        tooltip: 'Konumu yenile',
-                        onPressed: _initPickup,
-                        icon: const Icon(Icons.refresh),
-                      ),
-                      onTap: () {
-                        setState(() => _selectingDropoff = false);
-                        if (_pickup != null) {
-                          _mapController?.animateCamera(
-                            CameraUpdate.newLatLngZoom(_pickup!, 15),
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: TextField(
-                    controller: _searchController,
-                    focusNode: _searchFocus,
-                    onChanged: _onSearchChanged,
-                    textInputAction: TextInputAction.search,
-                    decoration: InputDecoration(
-                      hintText: _selectingDropoff
-                          ? 'Varış noktası ara (örn. Taksim, Kadıköy...)'
-                          : 'Alış noktası ara...',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searching
-                          ? const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            )
-                          : (_searchController.text.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() => _predictions = []);
-                                  },
-                                )
-                              : null),
-                    ),
-                  ),
-                ),
-                if (_predictions.isNotEmpty)
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 220),
-                    child: Card(
-                      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: _predictions.length,
-                        separatorBuilder: (_, _) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final p = _predictions[index];
-                          return ListTile(
-                            dense: true,
-                            leading: const Icon(Icons.place_outlined,
-                                color: AppColors.accent),
-                            title: Text(p.mainText ?? p.description),
-                            subtitle: p.secondaryText == null
-                                ? null
-                                : Text(p.secondaryText!),
-                            onTap: () => _selectPrediction(p),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                if (_saved.isNotEmpty)
-                  SizedBox(
-                    height: 48,
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _saved.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 8),
-                      itemBuilder: (context, index) {
-                        final s = _saved[index];
-                        return ActionChip(
-                          avatar: const Icon(Icons.bookmark, size: 16),
-                          label: Text(s.label),
-                          onPressed: () => _applySaved(s),
-                        );
-                      },
-                    ),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: Row(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Stack(
                     children: [
-                      ChoiceChip(
-                        label: Text(l10n.pickup),
-                        selected: !_selectingDropoff,
-                        onSelected: (_) =>
-                            setState(() => _selectingDropoff = false),
+                      Column(
+                        children: [
+                          _AddressField(
+                            controller: _pickupController,
+                            focusNode: _pickupFocus,
+                            icon: Icons.circle,
+                            iconColor: AppColors.success,
+                            hint: l10n.pickup,
+                            loading: _locating,
+                            onChanged: (v) {
+                              setState(() => _editingPickup = true);
+                              _onQueryChanged(v);
+                            },
+                            onTap: () =>
+                                setState(() => _editingPickup = true),
+                          ),
+                          const SizedBox(height: 10),
+                          _AddressField(
+                            controller: _dropoffController,
+                            focusNode: _dropoffFocus,
+                            icon: Icons.location_on_rounded,
+                            iconColor: AppColors.error,
+                            hint: l10n.arrivalAddress,
+                            onChanged: (v) {
+                              setState(() => _editingPickup = false);
+                              _onQueryChanged(v);
+                            },
+                            onTap: () =>
+                                setState(() => _editingPickup = false),
+                          ),
+                        ],
+                      ),
+                      Positioned(
+                        right: 8,
+                        top: 36,
+                        child: Material(
+                          color: AppColors.surfaceLight,
+                          shape: const CircleBorder(),
+                          elevation: 2,
+                          child: IconButton(
+                            tooltip: l10n.swapLocations,
+                            onPressed: _swap,
+                            icon: const Icon(Icons.swap_vert_rounded),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 40,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      _ShortcutChip(
+                        icon: Icons.home_outlined,
+                        label: '+ ${l10n.homeLabel}',
+                        onTap: () {
+                          if (home != null) {
+                            _applySaved(home);
+                          } else {
+                            context.push('/favorites');
+                          }
+                        },
                       ),
                       const SizedBox(width: 8),
-                      ChoiceChip(
-                        label: Text(l10n.dropoff),
-                        selected: _selectingDropoff,
-                        onSelected: (_) {
-                          setState(() => _selectingDropoff = true);
-                          _searchFocus.requestFocus();
+                      _ShortcutChip(
+                        icon: Icons.work_outline_rounded,
+                        label: '+ ${l10n.workLabel}',
+                        onTap: () {
+                          if (work != null) {
+                            _applySaved(work);
+                          } else {
+                            context.push('/favorites');
+                          }
                         },
                       ),
-                      const Spacer(),
-                      Text(
-                        _selectingDropoff
-                            ? 'Haritaya dokun: varış'
-                            : 'Haritaya dokun: alış',
-                        style: Theme.of(context).textTheme.bodySmall,
+                      const SizedBox(width: 8),
+                      _ShortcutChip(
+                        icon: Icons.add_rounded,
+                        label: '+ ${l10n.othersLabel}',
+                        onTap: () => context.push('/favorites'),
                       ),
                     ],
                   ),
                 ),
                 Expanded(
-                  child: Stack(
-                    children: [
-                      GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: _pickup ?? const LatLng(0, 0),
-                          zoom: _pickup == null ? 2 : 14,
-                        ),
-                        myLocationEnabled: true,
-                        myLocationButtonEnabled: false,
-                        zoomControlsEnabled: false,
-                        onTap: _onMapTap,
-                        onMapCreated: (controller) async {
-                          _mapController = controller;
-                          if (_pickup != null && _dropoff == null) {
-                            await controller.animateCamera(
-                              CameraUpdate.newLatLngZoom(_pickup!, 15),
-                            );
-                          } else if (_routePoints.length >= 2) {
-                            await _fitRoute();
-                          }
-                        },
-                        polylines: {
-                          if (_routePoints.length >= 2)
-                            Polyline(
-                              polylineId: const PolylineId('road_route'),
-                              points: _routePoints,
-                              color: AppColors.primary,
-                              width: 5,
-                              jointType: JointType.round,
-                              endCap: Cap.roundCap,
-                              startCap: Cap.roundCap,
-                            ),
-                        },
-                        markers: {
-                          if (_pickup != null)
-                            Marker(
-                              markerId: const MarkerId('pickup'),
-                              position: _pickup!,
-                              icon: MapMarkerIcons.pickupOrDefault,
-                              infoWindow: InfoWindow(
-                                title: l10n.pickup,
-                                snippet: _pickupAddress,
-                              ),
-                            ),
-                          if (_dropoff != null)
-                            Marker(
-                              markerId: const MarkerId('dropoff'),
-                              position: _dropoff!,
-                              icon: MapMarkerIcons.dropoffOrDefault,
-                              infoWindow: InfoWindow(
-                                title: l10n.dropoff,
-                                snippet: _dropoffAddress,
-                              ),
-                            ),
-                        },
-                      ),
-                      if (_loadingRoute)
-                        const Positioned(
-                          top: 12,
-                          left: 0,
-                          right: 0,
-                          child: Center(
-                            child: Card(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
+                  child: _showMapPicker
+                      ? GoogleMap(
+                          initialCameraPosition: CameraPosition(
+                            target: _pickup ??
+                                const LatLng(
+                                  AppConstants.defaultLatitude,
+                                  AppConstants.defaultLongitude,
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
+                            zoom: 14,
+                          ),
+                          myLocationEnabled: true,
+                          myLocationButtonEnabled: false,
+                          zoomControlsEnabled: false,
+                          onTap: _onMapTap,
+                          onMapCreated: (c) => _mapController = c,
+                          markers: {
+                            if (_pickup != null)
+                              Marker(
+                                markerId: const MarkerId('pickup'),
+                                position: _pickup!,
+                                icon: MapMarkerIcons.pickupOrDefault,
+                              ),
+                            if (_dropoff != null)
+                              Marker(
+                                markerId: const MarkerId('dropoff'),
+                                position: _dropoff!,
+                                icon: MapMarkerIcons.dropoffOrDefault,
+                              ),
+                          },
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                          children: [
+                            if (_predictions.isNotEmpty) ...[
+                              SectionHeader(title: l10n.searchResults),
+                              ..._predictions.map(
+                                (p) => ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: const Icon(
+                                    Icons.place_outlined,
+                                    color: AppColors.accentDeep,
+                                  ),
+                                  title: Text(p.mainText ?? p.description),
+                                  subtitle: p.secondaryText == null
+                                      ? null
+                                      : Text(p.secondaryText!),
+                                  onTap: () => _selectPrediction(p),
+                                ),
+                              ),
+                              if (_searching)
+                                const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                            ] else ...[
+                              SectionHeader(title: l10n.searchPlace),
+                              if (_recents.isEmpty)
+                                Text(
+                                  l10n.noRecentDestinations,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: AppColors.textSecondaryLight,
+                                      ),
+                                )
+                              else
+                                ..._recents.map(
+                                  (r) => ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: const Icon(
+                                      Icons.history_rounded,
+                                      color: AppColors.textSecondaryLight,
+                                    ),
+                                    title: Text(
+                                      r.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                    SizedBox(width: 10),
-                                    Text('Yol tarifi çiziliyor…'),
-                                  ],
+                                    subtitle: Text(r.address),
+                                    onTap: () {
+                                      setState(() {
+                                        final point =
+                                            LatLng(r.latitude, r.longitude);
+                                        if (_editingPickup) {
+                                          _pickup = point;
+                                          _pickupAddress = r.address;
+                                          _pickupController.text = r.address;
+                                        } else {
+                                          _dropoff = point;
+                                          _dropoffAddress = r.address;
+                                          _dropoffController.text = r.address;
+                                        }
+                                      });
+                                    },
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ),
+                            ],
+                          ],
                         ),
-                    ],
-                  ),
                 ),
                 Padding(
                   padding: EdgeInsets.fromLTRB(16, 8, 16, 12 + bottomInset),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (_dropoffAddress.isNotEmpty)
-                        ListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          leading:
-                              const Icon(Icons.place, color: AppColors.error),
-                          title: Text(l10n.dropoff),
-                          subtitle: Text(_dropoffAddress),
-                          trailing: IconButton(
-                            tooltip: 'Kaydet',
-                            onPressed: _saveCurrentDropoff,
-                            icon: const Icon(Icons.bookmark_add_outlined),
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            setState(() => _showMapPicker = !_showMapPicker),
+                        icon: const Icon(Icons.map_outlined),
+                        label: Text(l10n.selectFromMap),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.ink,
+                          side: const BorderSide(color: AppColors.ink),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
+                      ),
+                      const SizedBox(height: 10),
                       PrimaryButton(
                         label: l10n.continueButton,
                         onPressed: _pickup != null && _dropoff != null
@@ -605,6 +596,89 @@ class _DestinationPageState extends State<DestinationPage> {
           );
         },
       ),
+    );
+  }
+}
+
+class _AddressField extends StatelessWidget {
+  const _AddressField({
+    required this.controller,
+    required this.focusNode,
+    required this.icon,
+    required this.iconColor,
+    required this.hint,
+    required this.onChanged,
+    required this.onTap,
+    this.loading = false,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final IconData icon;
+  final Color iconColor;
+  final String hint;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onTap;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      focusNode: focusNode,
+      onChanged: onChanged,
+      onTap: onTap,
+      decoration: InputDecoration(
+        hintText: hint,
+        filled: true,
+        fillColor: AppColors.surfaceLight,
+        prefixIcon: loading
+            ? const Padding(
+                padding: EdgeInsets.all(12),
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : Icon(icon, color: iconColor, size: 18),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: AppColors.dividerLight.withValues(alpha: 0.8),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: AppColors.dividerLight.withValues(alpha: 0.8),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShortcutChip extends StatelessWidget {
+  const _ShortcutChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      avatar: Icon(icon, size: 16, color: AppColors.accentDeep),
+      label: Text(label),
+      onPressed: onTap,
+      backgroundColor: AppColors.surfaceLight,
+      side: BorderSide(color: AppColors.dividerLight.withValues(alpha: 0.8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
   }
 }

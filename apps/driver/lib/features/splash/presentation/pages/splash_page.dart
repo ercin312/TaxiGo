@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:taxigo_core/taxigo_core.dart';
 
+import '../../../../di/locator.dart';
 import '../../../auth/application/driver_auth_bloc.dart';
 import '../../../kyc/application/kyc_bloc.dart';
 
@@ -21,6 +22,9 @@ class _SplashPageState extends State<SplashPage> {
   }
 
   Future<void> _routeAuthenticated() async {
+    await getIt<FeatureModulesService>().refresh(force: true);
+    if (!mounted) return;
+
     final kycBloc = context.read<KycBloc>();
     kycBloc.add(const KycCheckStatus());
 

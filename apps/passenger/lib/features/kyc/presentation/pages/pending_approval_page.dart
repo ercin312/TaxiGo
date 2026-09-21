@@ -47,9 +47,7 @@ class PendingApprovalPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    rejectionReason ??
-                        'Belgeleriniz incelendikten sonra taksi modu açılacak. '
-                            'Onay için admin paneli gerekir.',
+                    rejectionReason ?? l10n.documentsUnderReviewHint,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Theme.of(context).hintColor,
                         ),
@@ -68,7 +66,7 @@ class PendingApprovalPage extends StatelessWidget {
                       context.read<AppModeCubit>().switchToPassenger();
                       context.go('/home');
                     },
-                    child: const Text('Yolcu moduna dön'),
+                    child: Text(l10n.returnToPassengerMode),
                   ),
                 ],
               ),

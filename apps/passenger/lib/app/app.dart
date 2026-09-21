@@ -48,7 +48,7 @@ class _TaxiGoAppState extends State<TaxiGoApp> {
             themeMode: ThemeMode.light,
             locale: languageState.locale,
             supportedLocales: AppLocalizations.supportedLocales,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            localizationsDelegates: TaxiGoLocalization.delegates,
             routerConfig: _router,
             builder: (context, child) {
               ErrorWidget.builder = (details) {

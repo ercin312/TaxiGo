@@ -89,7 +89,7 @@ abstract final class ModelMappers {
       estimatedFare: _toDouble(json['estimated_fare']),
       offeredFare: _toDouble(json['offered_fare']),
       minimumFare: _toDouble(json['minimum_fare']),
-      isBidding: json['is_bidding'] != false,
+      isBidding: json['is_bidding'] == true,
       finalFare: _toDouble(json['final_fare']),
       distanceKm: _toDouble(json['distance_km']),
       durationMinutes: _toInt(json['duration_minutes']),
@@ -119,6 +119,10 @@ abstract final class ModelMappers {
             vehicle?['plate']?.toString() ??
             json['vehicle_plate']?.toString();
       }(),
+      vehicleType: json['vehicle_type']?.toString() ?? 'standard',
+      productMode: json['product_mode']?.toString() ?? 'taxi',
+      scheduledAt: _toDateTime(json['scheduled_at']),
+      passengerNote: json['passenger_note']?.toString(),
     );
   }
 

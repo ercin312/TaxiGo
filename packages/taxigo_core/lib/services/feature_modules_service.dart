@@ -21,13 +21,16 @@ class FeatureModulesService {
   bool get directionsFare => enabled('directions_fare');
   bool get placesAutocomplete => enabled('places_autocomplete');
   bool get rideSettlement => enabled('ride_settlement');
-  bool get withdrawals => enabled('withdrawals');
+  bool get withdrawals => enabled('withdrawals', fallback: false);
+  bool get walletTopUp => enabled('wallet_topup', fallback: false);
   bool get rtdbSync => enabled('rtdb_sync');
   bool get fcmDispatch => enabled('fcm_dispatch');
   bool get sosAlerts => enabled('sos_alerts');
   bool get shareTrip => enabled('share_trip');
+  bool get rideComms => enabled('ride_comms', fallback: true);
+  bool get rideReceipts => enabled('ride_receipts', fallback: true);
   bool get bidding => enabled('bidding');
-  bool get cardPayments => enabled('card_payments');
+  bool get cardPayments => enabled('card_payments', fallback: false);
 
   Future<Map<String, bool>> refresh({bool force = false}) async {
     if (!force &&

@@ -15,8 +15,12 @@ use Inertia\Response;
 
 class WithdrawalController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
     {
+        if (app(\App\Services\FeatureModuleService::class)->disabled('withdrawals')) {
+            return redirect('/admin')->with('error', 'Driver payouts module is disabled.');
+        }
+
         $withdrawals = WithdrawalRequest::query()
             ->with(['driver.user'])
             ->when($request->status, fn ($q, $status) => $q->where('status', $status))
@@ -32,6 +36,10 @@ class WithdrawalController extends Controller
 
     public function approve(Request $request, WithdrawalRequest $withdrawal): RedirectResponse
     {
+        if (app(\App\Services\FeatureModuleService::class)->disabled('withdrawals')) {
+            return back()->with('error', 'Driver payouts module is disabled.');
+        }
+
         if ($withdrawal->status !== 'pending') {
             return back()->with('error', 'Withdrawal request is not pending.');
         }
@@ -88,6 +96,10 @@ class WithdrawalController extends Controller
 
     public function reject(Request $request, WithdrawalRequest $withdrawal): RedirectResponse
     {
+        if (app(\App\Services\FeatureModuleService::class)->disabled('withdrawals')) {
+            return back()->with('error', 'Driver payouts module is disabled.');
+        }
+
         if ($withdrawal->status !== 'pending') {
             return back()->with('error', 'Withdrawal request is not pending.');
         }

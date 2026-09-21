@@ -72,6 +72,16 @@ class BookingSubmitRequested extends BookingEvent {
   const BookingSubmitRequested();
 }
 
+class BookingMatchModeChanged extends BookingEvent {
+  const BookingMatchModeChanged(this.matchMode);
+
+  /// `instant` | `bidding`
+  final String matchMode;
+
+  @override
+  List<Object?> get props => [matchMode];
+}
+
 class BookingOfferAdjusted extends BookingEvent {
   const BookingOfferAdjusted(this.delta);
 
@@ -79,6 +89,33 @@ class BookingOfferAdjusted extends BookingEvent {
 
   @override
   List<Object?> get props => [delta];
+}
+
+class BookingProductModeChanged extends BookingEvent {
+  const BookingProductModeChanged(this.productMode);
+
+  final String productMode;
+
+  @override
+  List<Object?> get props => [productMode];
+}
+
+class BookingNoteChanged extends BookingEvent {
+  const BookingNoteChanged(this.note);
+
+  final String note;
+
+  @override
+  List<Object?> get props => [note];
+}
+
+class BookingScheduleRequested extends BookingEvent {
+  const BookingScheduleRequested(this.scheduledAt);
+
+  final DateTime scheduledAt;
+
+  @override
+  List<Object?> get props => [scheduledAt];
 }
 
 class BookingState extends Equatable {
@@ -92,9 +129,13 @@ class BookingState extends Equatable {
     this.dropoffAddress,
     this.estimate,
     this.vehicleType = 'standard',
+    this.productMode = 'taxi',
+    this.matchMode = 'instant',
     this.paymentMethod = PaymentMethod.cash,
     this.promoCode,
     this.offeredFare,
+    this.passengerNote,
+    this.scheduledAt,
     this.createdRide,
     this.errorMessage,
   });
@@ -108,9 +149,13 @@ class BookingState extends Equatable {
   final String? dropoffAddress;
   final FareEstimateModel? estimate;
   final String vehicleType;
+  final String productMode;
+  final String matchMode;
   final PaymentMethod paymentMethod;
   final String? promoCode;
   final double? offeredFare;
+  final String? passengerNote;
+  final DateTime? scheduledAt;
   final RideModel? createdRide;
   final String? errorMessage;
 
@@ -124,12 +169,17 @@ class BookingState extends Equatable {
     String? dropoffAddress,
     FareEstimateModel? estimate,
     String? vehicleType,
+    String? productMode,
+    String? matchMode,
     PaymentMethod? paymentMethod,
     String? promoCode,
     double? offeredFare,
+    String? passengerNote,
+    DateTime? scheduledAt,
     RideModel? createdRide,
     String? errorMessage,
     bool clearError = false,
+    bool clearScheduledAt = false,
   }) {
     return BookingState(
       status: status ?? this.status,
@@ -141,9 +191,14 @@ class BookingState extends Equatable {
       dropoffAddress: dropoffAddress ?? this.dropoffAddress,
       estimate: estimate ?? this.estimate,
       vehicleType: vehicleType ?? this.vehicleType,
+      productMode: productMode ?? this.productMode,
+      matchMode: matchMode ?? this.matchMode,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       promoCode: promoCode ?? this.promoCode,
       offeredFare: offeredFare ?? this.offeredFare,
+      passengerNote: passengerNote ?? this.passengerNote,
+      scheduledAt:
+          clearScheduledAt ? null : (scheduledAt ?? this.scheduledAt),
       createdRide: createdRide ?? this.createdRide,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
@@ -160,9 +215,13 @@ class BookingState extends Equatable {
         dropoffAddress,
         estimate,
         vehicleType,
+        productMode,
+        matchMode,
         paymentMethod,
         promoCode,
         offeredFare,
+        passengerNote,
+        scheduledAt,
         createdRide,
         errorMessage,
       ];
@@ -177,9 +236,13 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     on<BookingLocationsSet>(_onLocationsSet);
     on<BookingEstimateRequested>(_onEstimate);
     on<BookingVehicleTypeChanged>(_onVehicleChanged);
+    on<BookingProductModeChanged>(_onProductModeChanged);
+    on<BookingMatchModeChanged>(_onMatchModeChanged);
     on<BookingPaymentMethodChanged>(_onPaymentChanged);
+    on<BookingNoteChanged>(_onNoteChanged);
     on<BookingOfferAdjusted>(_onOfferAdjusted);
     on<BookingSubmitRequested>(_onSubmit);
+    on<BookingScheduleRequested>(_onSchedule);
   }
 
   final RideRepository _rideRepository;
@@ -251,6 +314,36 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     add(BookingEstimateRequested(vehicleType: event.vehicleType));
   }
 
+  Future<void> _onProductModeChanged(
+    BookingProductModeChanged event,
+    Emitter<BookingState> emit,
+  ) async {
+    final nextType = event.productMode == 'transfer'
+        ? (state.vehicleType == 'standard' ? 'van' : state.vehicleType)
+        : (state.vehicleType == 'van' ? 'standard' : state.vehicleType);
+    // Transfer / airport: default to instant fixed-price match.
+    final nextMatch = event.productMode == 'transfer' ? 'instant' : state.matchMode;
+    emit(state.copyWith(
+      productMode: event.productMode,
+      vehicleType: nextType,
+      matchMode: nextMatch,
+      offeredFare: state.estimate?.totalFare,
+    ));
+    add(BookingEstimateRequested(vehicleType: nextType));
+  }
+
+  void _onMatchModeChanged(
+    BookingMatchModeChanged event,
+    Emitter<BookingState> emit,
+  ) {
+    emit(state.copyWith(
+      matchMode: event.matchMode,
+      offeredFare: event.matchMode == 'instant'
+          ? state.estimate?.totalFare
+          : state.offeredFare,
+    ));
+  }
+
   Future<void> _onPaymentChanged(
     BookingPaymentMethodChanged event,
     Emitter<BookingState> emit,
@@ -258,10 +351,31 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     emit(state.copyWith(paymentMethod: event.paymentMethod));
   }
 
+  void _onNoteChanged(
+    BookingNoteChanged event,
+    Emitter<BookingState> emit,
+  ) {
+    emit(state.copyWith(passengerNote: event.note));
+  }
+
   Future<void> _onSubmit(
     BookingSubmitRequested event,
     Emitter<BookingState> emit,
   ) async {
+    await _createRide(emit, scheduledAt: null);
+  }
+
+  Future<void> _onSchedule(
+    BookingScheduleRequested event,
+    Emitter<BookingState> emit,
+  ) async {
+    await _createRide(emit, scheduledAt: event.scheduledAt);
+  }
+
+  Future<void> _createRide(
+    Emitter<BookingState> emit, {
+    required DateTime? scheduledAt,
+  }) async {
     if (state.pickupLat == null ||
         state.dropoffLat == null ||
         state.pickupAddress == null ||
@@ -280,7 +394,13 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
       paymentMethod: state.paymentMethod,
       vehicleType: state.vehicleType,
       promoCode: state.promoCode,
-      offeredFare: state.offeredFare ?? state.estimate?.totalFare,
+      offeredFare: state.matchMode == 'bidding'
+          ? (state.offeredFare ?? state.estimate?.totalFare)
+          : state.estimate?.totalFare,
+      productMode: state.productMode,
+      matchMode: scheduledAt != null ? 'instant' : state.matchMode,
+      scheduledAt: scheduledAt,
+      passengerNote: state.passengerNote,
     );
 
     result.fold(
@@ -291,6 +411,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
       (ride) => emit(state.copyWith(
         status: BookingStatus.booked,
         createdRide: ride,
+        scheduledAt: scheduledAt,
       )),
     );
   }

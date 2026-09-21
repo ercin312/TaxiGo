@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\FeatureModuleService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -27,7 +28,7 @@ class HandleInertiaRequests extends Middleware
                         'is_super_admin' => $request->user()->isSuperAdmin(),
                     ]
                     : null,
-            },
+            ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
@@ -35,6 +36,9 @@ class HandleInertiaRequests extends Middleware
             'app' => [
                 'name' => config('app.name'),
             ],
+            'modules' => fn () => $request->user()
+                ? app(FeatureModuleService::class)->flags()
+                : [],
         ]);
     }
 }

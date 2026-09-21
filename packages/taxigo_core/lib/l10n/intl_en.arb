@@ -32,7 +32,9 @@
   "verifyOtpSubtitle": "Enter the 6-digit code shown in the app for {phone}",
   "@verifyOtpSubtitle": {
     "placeholders": {
-      "phone": {"type": "String"}
+      "phone": {
+        "type": "String"
+      }
     }
   },
   "otpCode": "OTP Code",
@@ -46,7 +48,9 @@
   "nearbyDrivers": "{count} drivers nearby",
   "@nearbyDrivers": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "searchDestination": "Search destination",
@@ -164,7 +168,9 @@
   "otpNotificationBody": "Your login code: {code}",
   "@otpNotificationBody": {
     "placeholders": {
-      "code": {"type": "String"}
+      "code": {
+        "type": "String"
+      }
     }
   },
   "otpNotificationSent": "Verification code sent as a notification.",
@@ -185,7 +191,255 @@
   "secondsLeft": "{seconds}s left",
   "@secondsLeft": {
     "placeholders": {
-      "seconds": {"type": "int"}
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "locationUnavailableMapSelect": "Location unavailable — select on the map",
+  "podgoricaMontenegro": "Podgorica, Montenegro",
+  "saveAddress": "Save address",
+  "addressLabelHint": "Label (Home, Work...)",
+  "locating": "Getting location...",
+  "refreshLocation": "Refresh location",
+  "searchDestinationHintMe": "Search in Montenegro (e.g. Budva, Kotor...)",
+  "searchPickupHintMe": "Search pickup in Montenegro...",
+  "tapMapDropoff": "Tap map: drop-off",
+  "tapMapPickup": "Tap map: pickup",
+  "drawingRoute": "Drawing route…",
+  "taxiComing": "Your taxi is coming",
+  "tripInProgressShort": "Trip in progress",
+  "matchedTaxiComing": "Your matched taxi is coming to you",
+  "goingToDestination": "Going to destination",
+  "taxiGeneric": "Taxi",
+  "driverGeneric": "Driver",
+  "onlyYourTaxiOnMap": "Only your taxi is on the map",
+  "youAreHere": "You are here",
+  "pickupPoint": "Pickup point",
+  "yourTaxi": "Your taxi",
+  "camera": "Camera",
+  "gallery": "Gallery",
+  "vehicleMake": "Make",
+  "vehicleMakeHint": "e.g. Toyota",
+  "vehicleModel": "Model",
+  "vehicleModelHint": "e.g. Corolla",
+  "vehicleYear": "Model year",
+  "vehicleYearHint": "e.g. 2020",
+  "vehicleColor": "Color",
+  "vehicleColorHint": "e.g. White",
+  "vehiclePlate": "Plate",
+  "vehiclePlateHint": "e.g. PG AB 01",
+  "returnToPassengerMode": "Return to passenger mode",
+  "withdrawalRequest": "Withdrawal request",
+  "balanceLabel": "Balance",
+  "amount": "Amount",
+  "bank": "Bank",
+  "ibanAccount": "IBAN / Account",
+  "accountHolder": "Account holder",
+  "send": "Send",
+  "withdrawalSubmitted": "Withdrawal request submitted.",
+  "profileUpdated": "Profile updated",
+  "shareLinkCopied": "Share link copied to clipboard",
+  "homeLabel": "Home",
+  "savedLabel": "Saved",
+  "dropoffShort": "Drop-off",
+  "taxiComingToYou": "Your taxi is coming to you",
+  "headingToDestination": "Heading to destination…",
+  "boardOnlyThisVehicle": "Board only this vehicle",
+  "pickupWithAddress": "Pickup: {address}",
+  "@pickupWithAddress": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "vehicleInfoTitle": "Vehicle details",
+  "vehicleInfoSubtitle": "Enter vehicle details and upload required documents to switch to taxi mode.",
+  "fieldRequired": "{field} is required",
+  "@fieldRequired": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "validYearRequired": "Enter a valid year",
+  "documentsUnderReviewHint": "Taxi mode will open after your documents are reviewed. Admin approval is required.",
+  "navHome": "Home",
+  "navHistory": "History",
+  "navAccount": "Account",
+  "greetingMorning": "Good morning {name}, let's hit the road!",
+  "@greetingMorning": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "greetingAfternoon": "Good afternoon {name}, let's hit the road!",
+  "@greetingAfternoon": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "greetingEvening": "Good evening {name}, let's hit the road!",
+  "@greetingEvening": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "greetingNight": "Good night {name}, let's hit the road!",
+  "@greetingNight": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "favoriteLocations": "Favorite locations",
+  "favoriteLocationsHint": "Save important places for quick access",
+  "workLabel": "Work",
+  "othersLabel": "Others",
+  "tapToAddAddress": "Tap to add address",
+  "addMoreFavorites": "Add more",
+  "favoritesTip": "Tip: Save addresses you visit often for faster booking.",
+  "selectFromMap": "Select from map",
+  "searchPlace": "Search place",
+  "searchRoute": "Search route",
+  "arrivalAddress": "Destination address",
+  "productTaxi": "Taxi",
+  "productTransfer": "Transfer",
+  "vehicleVan": "Van",
+  "addNote": "Add note",
+  "coupon": "Coupon",
+  "callTaxiGo": "Call TaxiGo",
+  "scheduleRide": "Schedule",
+  "discoverYourDriver": "Discover your driver",
+  "reservationDetails": "Reservation details",
+  "tripDetails": "Trip details",
+  "payInVehicle": "Pay in vehicle",
+  "manageTrip": "Manage trip",
+  "outOfServiceTitle": "Your location is outside our service area",
+  "outOfServiceBody": "Set a pickup point within Montenegro to continue.",
+  "historyCompleted": "Completed",
+  "historyUpcoming": "Upcoming",
+  "historyCancelled": "Cancelled",
+  "noUpcomingTrips": "No upcoming trips",
+  "noUpcomingTripsHint": "You have no scheduled trips.",
+  "createNewTrip": "Create new trip",
+  "upcomingTip": "Tip: Your scheduled trips will appear here.",
+  "noCompletedTrips": "No completed trips yet",
+  "noCancelledTrips": "No cancelled trips",
+  "accountSection": "Your account",
+  "accountSectionHint": "Manage profile and settings",
+  "activitySection": "Activity",
+  "activitySectionHint": "Track activity and history",
+  "settingsSection": "Settings",
+  "settingsSectionHint": "App preferences and profile options",
+  "personalInfo": "Personal information",
+  "notifications": "Notifications",
+  "notificationsHint": "View your notifications",
+  "upcomingTrips": "Upcoming",
+  "upcomingTripsHint": "Your scheduled trips",
+  "tripHistoryHint": "Your past trips",
+  "help": "Help",
+  "totalTrips": "Total trips: {count}",
+  "@totalTrips": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "seatsCount": "{count} seats",
+  "@seatsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "etaMinutesShort": "{minutes} mins",
+  "@etaMinutesShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "fareMayVary": "Fare may vary with traffic.",
+  "noteHint": "Note for driver",
+  "rideScheduled": "Ride scheduled",
+  "swapLocations": "Swap",
+  "recentDestinations": "Recent destinations",
+  "noRecentDestinations": "Recent places will appear here",
+  "searchResults": "Search results",
+  "minutesElapsed": "{minutes} min",
+  "@minutesElapsed": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "password": "Password",
+  "rolePassenger": "Passenger",
+  "roleDriver": "Driver",
+  "continueWithGoogle": "Continue with Google",
+  "topUpConfirm": "Pay {amount} {currency} to top up your wallet?",
+  "topUpSuccess": "Wallet topped up successfully.",
+  "topUpHint": "Choose an amount. Payment is processed securely when Super Admin enables top-up.",
+  "topUpDisabled": "Wallet top-up is currently disabled. Ask Super Admin to enable the Wallet Top-Up module.",
+  "withdrawDisabled": "Driver payouts are currently disabled. Ask Super Admin to enable Driver Payouts.",
+  "withdrawCash": "Withdraw",
+  "maskedCall": "Private call",
+  "rideChat": "Message",
+  "rideChatHint": "Short message…",
+  "rideChatPrivacyHint": "Numbers stay private. Use quick replies or a short note.",
+  "maskedCallDialing": "Connecting via private number…",
+  "maskedCallRequested": "Private call requested. The other party was notified.",
+  "chatTplWhereAreYou": "Where are you?",
+  "chatTplImOutside": "I'm outside",
+  "chatTplAtTheDoor": "At the door",
+  "chatTplLuggage": "I have luggage",
+  "chatTplRunningLate": "2–3 min late",
+  "chatTplCantFind": "Can't find you",
+  "chatTplOk": "OK",
+  "chatTplOnMyWay": "On my way",
+  "matchModeInstant": "TaxiGo Call",
+  "matchModeBidding": "Offer / Bids",
+  "matchModeInstantDesc": "Nearest available driver is matched automatically at a fixed price.",
+  "matchModeBiddingDesc": "Drivers can counter your offer. You pick the bid you like.",
+  "fixedPriceTransfer": "Fixed transfer price",
+  "instantMatchHint": "Fixed fare · nearest driver assigned instantly when available.",
+  "requestBids": "Request bids",
+  "yourOffer": "Your offer",
+  "rideAgain": "Ride again",
+  "viewEReceipt": "View e-receipt",
+  "eReceipt": "E-receipt",
+  "eReceiptBadge": "E-RECEIPT",
+  "shareReceipt": "Share receipt",
+  "receiptCopied": "Receipt copied to clipboard.",
+  "receiptExpenseHint": "Use this e-receipt for hotels, business travel, or expense reports.",
+  "tripReference": "Trip reference",
+  "completedAt": "Completed",
+  "subtotal": "Subtotal",
+  "discount": "Discount",
+  "total": "Total",
+  "taxId": "Tax ID",
+  "@topUpConfirm": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
     }
   }
 }

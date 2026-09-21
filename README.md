@@ -138,7 +138,7 @@ Giriş **SMS ile değil**, backend üzerinden **uygulama içi OTP** ile yapılı
 
 ## Localization
 
-Supported: **TR, EN, RU, Karabağca (xh), Arabic (ar)** with RTL.
+Supported: **TR, EN, Crnogorski (cnr), RU, Arabic (ar)** with RTL.
 
 Add a language:
 

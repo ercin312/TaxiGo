@@ -12,13 +12,17 @@ use App\Services\FareCalculatorService;
 use App\Services\FeatureModuleService;
 use App\Services\FirebaseRtdbService;
 use App\Services\GoogleMapsService;
+use App\Services\InstantMatchService;
 use App\Services\RideDispatchService;
 use App\Services\RideMatchingService;
+use App\Services\RideReceiptService;
 use App\Services\RideStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use RuntimeException;
 
 class RideController extends Controller
 {
@@ -29,6 +33,8 @@ class RideController extends Controller
         protected RideMatchingService $matchingService,
         protected FirebaseRtdbService $rtdbService,
         protected RideDispatchService $dispatchService,
+        protected InstantMatchService $instantMatch,
+        protected RideReceiptService $receipts,
     ) {}
 
     public function eta(Request $request): JsonResponse
@@ -88,6 +94,11 @@ class RideController extends Controller
             'vehicle_type' => ['sometimes', 'string', 'max:50'],
             'promo_code' => ['sometimes', 'nullable', 'string'],
             'offered_fare' => ['sometimes', 'numeric', 'min:0'],
+            'product_mode' => ['sometimes', 'string', 'in:taxi,transfer'],
+            'match_mode' => ['sometimes', 'string', 'in:instant,bidding'],
+            'is_bidding' => ['sometimes', 'boolean'],
+            'scheduled_at' => ['sometimes', 'nullable', 'date', 'after:now'],
+            'passenger_note' => ['sometimes', 'nullable', 'string', 'max:500'],
         ]);
 
         $paymentMethod = PaymentMethod::tryFrom(
@@ -125,17 +136,35 @@ class RideController extends Controller
             ? (float) $validated['offered_fare']
             : (float) $fare['fare'];
 
-        if ($offeredFare < (float) $fare['fare']) {
+        $matchMode = (string) ($validated['match_mode'] ?? 'instant');
+        if (array_key_exists('is_bidding', $validated)) {
+            $matchMode = filter_var($validated['is_bidding'], FILTER_VALIDATE_BOOLEAN)
+                ? 'bidding'
+                : 'instant';
+        }
+
+        // Instant / transfer uses fixed estimate; bidding may raise offer.
+        $isBidding = $matchMode === 'bidding'
+            && empty($validated['scheduled_at'])
+            && app(FeatureModuleService::class)->enabled('bidding');
+
+        if ($isBidding && $offeredFare < (float) $fare['fare']) {
             return response()->json([
                 'message' => 'Offered fare cannot be below the minimum fare.',
                 'minimum_fare' => $fare['fare'],
             ], 422);
         }
 
+        if (! $isBidding) {
+            $offeredFare = (float) $fare['fare'];
+        }
+
         $ride = Ride::query()->create([
             'reference' => 'TG-'.strtoupper(Str::random(10)),
             'passenger_id' => $request->user()->id,
             'status' => RideStatus::Pending,
+            'product_mode' => $validated['product_mode'] ?? 'taxi',
+            'vehicle_type' => $validated['vehicle_type'] ?? 'standard',
             'pickup_latitude' => $validated['pickup_latitude'],
             'pickup_longitude' => $validated['pickup_longitude'],
             'pickup_address' => $validated['pickup_address'],
@@ -147,7 +176,7 @@ class RideController extends Controller
             'estimated_fare' => $offeredFare,
             'offered_fare' => $offeredFare,
             'minimum_fare' => $fare['fare'],
-            'is_bidding' => app(FeatureModuleService::class)->enabled('bidding'),
+            'is_bidding' => $isBidding,
             'payment_method' => $paymentMethod,
             'payment_status' => \App\Enums\PaymentStatus::Pending,
             'payment_provider' => $paymentMethod === PaymentMethod::Card
@@ -156,19 +185,50 @@ class RideController extends Controller
             'promo_code_id' => $promoCode?->id,
             'discount_amount' => $fare['discount'],
             'commission_amount' => $fare['commission'],
-            'expires_at' => now()->addMinutes(config('taxigo.ride_expiry_minutes', 15)),
+            'passenger_note' => $validated['passenger_note'] ?? null,
+            'scheduled_at' => $validated['scheduled_at'] ?? null,
+            'expires_at' => empty($validated['scheduled_at'])
+                ? now()->addMinutes(config('taxigo.ride_expiry_minutes', 15))
+                : null,
         ]);
+
+        $assigned = false;
+        $notified = 0;
+
+        if (empty($validated['scheduled_at'])) {
+            if (! $isBidding) {
+                $matched = $this->instantMatch->tryAssignNearest(
+                    $ride,
+                    $validated['vehicle_type'] ?? 'standard',
+                );
+                if ($matched !== null) {
+                    $ride = $matched;
+                    $assigned = true;
+                } else {
+                    $notified = $this->dispatchService->notifyNearbyDrivers(
+                        $ride,
+                        $validated['vehicle_type'] ?? 'standard',
+                    );
+                }
+            } else {
+                $notified = $this->dispatchService->notifyNearbyDrivers(
+                    $ride,
+                    $validated['vehicle_type'] ?? 'standard',
+                );
+            }
+        }
 
         $this->rtdbService->syncRide($ride);
 
-        $notified = $this->dispatchService->notifyNearbyDrivers(
-            $ride,
-            $validated['vehicle_type'] ?? 'standard',
-        );
-
         return response()->json([
-            'message' => 'Ride requested successfully.',
-            'ride' => $ride->load('passenger', 'driver.user'),
+            'message' => empty($validated['scheduled_at'])
+                ? ($assigned
+                    ? 'Nearest driver assigned.'
+                    : 'Ride requested successfully.')
+                : 'Ride scheduled successfully.',
+            'ride' => $ride->load('passenger', 'driver.user', 'driver.vehicle'),
+            'match_mode' => $isBidding ? 'bidding' : 'instant',
+            'instant_assigned' => $assigned,
             'notified_drivers' => $notified,
         ], 201);
     }
@@ -219,6 +279,34 @@ class RideController extends Controller
             ->paginate($request->integer('per_page', 15));
 
         return response()->json($rides);
+    }
+
+    public function receipt(Request $request, Ride $ride): JsonResponse
+    {
+        $this->authorizeRideAccess($request, $ride);
+
+        try {
+            $payload = $this->receipts->build($ride);
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['receipt' => $payload]);
+    }
+
+    public function receiptHtml(Request $request, Ride $ride): Response
+    {
+        $this->authorizeRideAccess($request, $ride);
+
+        try {
+            $payload = $this->receipts->build($ride);
+        } catch (RuntimeException $e) {
+            return response($e->getMessage(), 422);
+        }
+
+        return response()
+            ->view('receipts.ride', ['receipt' => $payload])
+            ->header('Content-Type', 'text/html; charset=UTF-8');
     }
 
     public function active(Request $request): JsonResponse

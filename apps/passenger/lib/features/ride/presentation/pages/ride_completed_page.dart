@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:taxigo_core/taxigo_core.dart';
 
 import '../../../../di/locator.dart';
+import '../../../account/presentation/widgets/trip_actions_sheet.dart';
 import '../../application/ride_bloc.dart';
 
 class RideCompletedPage extends StatefulWidget {
@@ -44,6 +45,7 @@ class _RideCompletedPageState extends State<RideCompletedPage> {
           }
         },
         builder: (context, state) {
+          final ride = state.ride;
           return Scaffold(
             appBar: AppBar(title: Text(l10n.tripCompleted)),
             body: LoadingOverlay(
@@ -53,7 +55,11 @@ class _RideCompletedPageState extends State<RideCompletedPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(Icons.check_circle, size: 80, color: AppColors.success),
+                    const Icon(
+                      Icons.check_circle,
+                      size: 80,
+                      color: AppColors.success,
+                    ),
                     const SizedBox(height: 24),
                     Text(
                       l10n.rateDriver,
@@ -85,6 +91,32 @@ class _RideCompletedPageState extends State<RideCompletedPage> {
                       ),
                     ),
                     const Spacer(),
+                    if (ride != null) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () =>
+                                  rideAgainFromHistory(context, ride),
+                              icon: const Icon(Icons.replay_rounded),
+                              label: Text(l10n.rideAgain),
+                            ),
+                          ),
+                          if (locator<FeatureModulesService>().rideReceipts) ...[
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () =>
+                                    context.push('/receipt/${ride.id}'),
+                                icon: const Icon(Icons.receipt_long_rounded),
+                                label: Text(l10n.eReceipt),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     PrimaryButton(
                       label: l10n.submitRating,
                       onPressed: () {

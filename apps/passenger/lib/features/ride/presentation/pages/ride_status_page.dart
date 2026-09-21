@@ -389,9 +389,9 @@ class _RideStatusViewState extends State<_RideStatusView>
           appBar: AppBar(
             title: Text(
               _phase == _TrackPhase.approach
-                  ? 'Taksiniz geliyor'
+                  ? l10n.taxiComing
                   : _phase == _TrackPhase.trip
-                      ? 'Sürüş devam ediyor'
+                      ? l10n.tripInProgressShort
                       : rideStatusLabel(l10n, status),
             ),
             leading: IconButton(
@@ -399,6 +399,7 @@ class _RideStatusViewState extends State<_RideStatusView>
               onPressed: () => context.go('/home'),
             ),
             actions: [
+              RideCommsBar(rideId: widget.rideId, compact: true),
               ShareTripButton(rideId: widget.rideId),
               const SizedBox(width: 8),
               SosButton(rideId: widget.rideId),
@@ -415,14 +416,15 @@ class _RideStatusViewState extends State<_RideStatusView>
                     GoogleMap(
                       initialCameraPosition: CameraPosition(
                         target: LatLng(
-                          ride?.pickupLatitude ?? 41.0082,
-                          ride?.pickupLongitude ?? 28.9784,
+                          ride?.pickupLatitude ?? AppConstants.defaultLatitude,
+                          ride?.pickupLongitude ??
+                              AppConstants.defaultLongitude,
                         ),
                         zoom: 15,
                       ),
                       myLocationEnabled: false,
                       zoomControlsEnabled: false,
-                      markers: _buildMarkers(ride),
+                      markers: _buildMarkers(ride, l10n),
                       polylines: _buildPolylines(),
                       onMapCreated: (controller) async {
                         _mapController = controller;
@@ -441,11 +443,11 @@ class _RideStatusViewState extends State<_RideStatusView>
                           pulse: _pulseController,
                           progress: _progress,
                           title: _phase == _TrackPhase.approach
-                              ? 'Anlaştığın taksi sana geliyor'
-                              : 'Varışa gidiyorsunuz',
+                              ? l10n.matchedTaxiComing
+                              : l10n.goingToDestination,
                           subtitle: _phase == _TrackPhase.approach
-                              ? '${ride?.vehiclePlate ?? 'Taksi'} · ${ride?.driverName ?? 'Sürücü'}'
-                              : 'Sadece senin taksin haritada',
+                              ? '${ride?.vehiclePlate ?? l10n.taxiGeneric} · ${ride?.driverName ?? l10n.driverGeneric}'
+                              : l10n.onlyYourTaxiOnMap,
                         ),
                       ),
                   ],
@@ -456,8 +458,8 @@ class _RideStatusViewState extends State<_RideStatusView>
                 status: status,
                 phase: _phase,
                 progress: _progress,
-                plate: ride?.vehiclePlate ?? 'Taksi',
-                driverName: ride?.driverName ?? 'Sürücü',
+                plate: ride?.vehiclePlate ?? l10n.taxiGeneric,
+                driverName: ride?.driverName ?? l10n.driverGeneric,
               ),
               if (state.status == RideBlocStatus.failure &&
                   state.errorMessage != null)
@@ -512,7 +514,7 @@ class _RideStatusViewState extends State<_RideStatusView>
     };
   }
 
-  Set<Marker> _buildMarkers(RideModel? ride) {
+  Set<Marker> _buildMarkers(RideModel? ride, AppLocalizations l10n) {
     if (ride == null) return {};
     final pickup = LatLng(ride.pickupLatitude, ride.pickupLongitude);
     final dropoff = LatLng(ride.dropoffLatitude, ride.dropoffLongitude);
@@ -523,9 +525,9 @@ class _RideStatusViewState extends State<_RideStatusView>
         markerId: const MarkerId('you'),
         position: pickup,
         icon: MapMarkerIcons.pickupOrDefault,
-        infoWindow: const InfoWindow(
-          title: 'Sen buradasın',
-          snippet: 'Biniş noktası',
+        infoWindow: InfoWindow(
+          title: l10n.youAreHere,
+          snippet: l10n.pickupPoint,
         ),
       ),
     };
@@ -537,7 +539,7 @@ class _RideStatusViewState extends State<_RideStatusView>
           markerId: const MarkerId('dropoff'),
           position: dropoff,
           icon: MapMarkerIcons.dropoffOrDefault,
-          infoWindow: const InfoWindow(title: 'Varış'),
+          infoWindow: InfoWindow(title: l10n.dropoffShort),
         ),
       );
     }
@@ -553,9 +555,9 @@ class _RideStatusViewState extends State<_RideStatusView>
           flat: true,
           rotation: _taxiHeading,
           infoWindow: InfoWindow(
-            title: 'Senin taksin',
+            title: l10n.yourTaxi,
             snippet:
-                '${ride.vehiclePlate ?? 'Taksi'} · ${ride.driverName ?? 'Sürücü'}',
+                '${ride.vehiclePlate ?? l10n.taxiGeneric} · ${ride.driverName ?? l10n.driverGeneric}',
           ),
         ),
       );
@@ -678,9 +680,9 @@ class _RideStatusPanel extends StatelessWidget {
           children: [
             Text(
               isApproach
-                  ? 'Taksiniz sana geliyor'
+                  ? l10n.taxiComingToYou
                   : isTrip
-                      ? 'Varış noktasına gidiliyor…'
+                      ? l10n.headingToDestination
                       : rideStatusLabel(l10n, status),
               style: Theme.of(context).textTheme.titleLarge,
             ),
@@ -695,14 +697,14 @@ class _RideStatusPanel extends StatelessWidget {
                   plate,
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
-                subtitle: Text('$driverName · sadece bu araca bin'),
+                subtitle: Text('$driverName · ${l10n.boardOnlyThisVehicle}'),
               ),
             ),
             if (ride != null) ...[
               const SizedBox(height: 8),
               Text(
                 isApproach
-                    ? 'Biniş: ${ride!.pickupAddress}'
+                    ? l10n.pickupWithAddress(ride!.pickupAddress)
                     : '${ride!.pickupAddress} → ${ride!.dropoffAddress}',
               ),
               if (ride!.estimatedFare != null)
@@ -728,6 +730,8 @@ class _RideStatusPanel extends StatelessWidget {
             ],
             if (ride != null && (isApproach || isTrip)) ...[
               const SizedBox(height: 12),
+              RideCommsBar(rideId: ride!.id),
+              const SizedBox(height: 10),
               ShareTripButton(rideId: ride!.id, compact: false),
             ],
             const SizedBox(height: 12),

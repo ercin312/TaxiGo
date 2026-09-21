@@ -30,6 +30,10 @@ abstract final class ApiEndpoints {
   static String rideCancel(int id) => '/rides/$id/cancel';
   static String rideRate(int id) => '/rides/$id/rate';
   static String rideShare(int id) => '/rides/$id/share';
+  static String rideReceipt(int id) => '/rides/$id/receipt';
+  static String rideReceiptHtml(int id) => '/rides/$id/receipt/html';
+  static String rideMessages(int id) => '/rides/$id/messages';
+  static String rideMaskedCall(int id) => '/rides/$id/masked-call';
   static String rideBids(int id) => '/rides/$id/bids';
   static String rideOffer(int id) => '/rides/$id/offer';
   static String rideBidAccept(int rideId, int bidId) =>

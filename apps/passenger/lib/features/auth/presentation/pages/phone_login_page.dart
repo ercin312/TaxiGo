@@ -9,7 +9,6 @@ import '../../../../core/app_helpers.dart';
 import '../../../../di/locator.dart';
 import '../../../app_mode/application/app_mode_cubit.dart';
 
-/// App Review–friendly login: username/password + one-tap demo buttons.
 class PhoneLoginPage extends StatefulWidget {
   const PhoneLoginPage({super.key});
 
@@ -18,13 +17,8 @@ class PhoneLoginPage extends StatefulWidget {
 }
 
 class _PhoneLoginPageState extends State<PhoneLoginPage> {
-  static const _reviewPassengerPhone = '+905550000001';
-  static const _reviewDriverPhone = '+905550000002';
-  static const _reviewPassword = '123456';
-
-  final _usernameController =
-      TextEditingController(text: _reviewPassengerPhone);
-  final _passwordController = TextEditingController(text: _reviewPassword);
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
   String _role = 'passenger';
 
   bool get _showGoogle =>
@@ -41,47 +35,19 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
     required String phone,
     required String password,
     required String role,
-    String? name,
   }) {
+    final trimmedPhone = phone.trim();
+    final trimmedPassword = password.trim();
+    if (trimmedPhone.isEmpty || trimmedPassword.isEmpty) return;
+
     context.read<AuthBloc>().add(
           AuthReviewLoginRequested(
-            phoneNumber: phone.trim(),
-            password: password.trim(),
-            name: name ??
-                (role == 'driver'
-                    ? 'App Review Driver'
-                    : 'App Review Passenger'),
+            phoneNumber: trimmedPhone,
+            password: trimmedPassword,
+            name: role == 'driver' ? 'Driver' : 'Passenger',
             role: role,
           ),
         );
-  }
-
-  void _oneTapPassenger() {
-    setState(() {
-      _role = 'passenger';
-      _usernameController.text = _reviewPassengerPhone;
-      _passwordController.text = _reviewPassword;
-    });
-    _signIn(
-      phone: _reviewPassengerPhone,
-      password: _reviewPassword,
-      role: 'passenger',
-      name: 'App Review Passenger',
-    );
-  }
-
-  void _oneTapDriver() {
-    setState(() {
-      _role = 'driver';
-      _usernameController.text = _reviewDriverPhone;
-      _passwordController.text = _reviewPassword;
-    });
-    _signIn(
-      phone: _reviewDriverPhone,
-      password: _reviewPassword,
-      role: 'driver',
-      name: 'App Review Driver',
-    );
   }
 
   Future<void> _goAfterAuth(BuildContext context, AuthState state) async {
@@ -101,6 +67,8 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state.status == AuthStatus.authenticated) {
@@ -115,54 +83,18 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
       builder: (context, state) {
         final loading = state.status == AuthStatus.loading;
         return AuthScaffold(
-          title: 'Sign In',
-          subtitle:
-              'App Review: use the one-tap buttons, or username + password below.',
+          title: l10n.signIn,
+          subtitle: l10n.loginSubtitle,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Text(
-                  'Demo credentials\n'
-                  'Passenger username: +905550000001\n'
-                  'Driver username: +905550000002\n'
-                  'Password (both): 123456',
-                  style: TextStyle(height: 1.45, fontWeight: FontWeight.w600),
-                ),
-              ),
-              const SizedBox(height: 14),
-              FilledButton.icon(
-                onPressed: loading ? null : _oneTapPassenger,
-                icon: const Icon(Icons.person),
-                label: const Text('App Review — Passenger'),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-              const SizedBox(height: 10),
-              FilledButton.tonalIcon(
-                onPressed: loading ? null : _oneTapDriver,
-                icon: const Icon(Icons.local_taxi),
-                label: const Text('App Review — Driver'),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Divider(),
-              const SizedBox(height: 12),
               TextField(
                 controller: _usernameController,
                 keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Username (phone)',
-                  prefixIcon: Icon(Icons.person_outline_rounded),
+                decoration: InputDecoration(
+                  labelText: l10n.phoneNumber,
+                  prefixIcon: const Icon(Icons.person_outline_rounded),
                 ),
               ),
               const SizedBox(height: 12),
@@ -179,43 +111,33 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
                     );
                   }
                 },
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock_outline_rounded),
+                decoration: InputDecoration(
+                  labelText: l10n.password,
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
                 ),
               ),
               const SizedBox(height: 12),
               SegmentedButton<String>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: 'passenger',
-                    label: Text('Passenger'),
-                    icon: Icon(Icons.person),
+                    label: Text(l10n.rolePassenger),
+                    icon: const Icon(Icons.person),
                   ),
                   ButtonSegment(
                     value: 'driver',
-                    label: Text('Driver'),
-                    icon: Icon(Icons.local_taxi),
+                    label: Text(l10n.roleDriver),
+                    icon: const Icon(Icons.local_taxi),
                   ),
                 ],
                 selected: {_role},
                 onSelectionChanged: loading
                     ? null
-                    : (value) {
-                        setState(() {
-                          _role = value.first;
-                          if (_role == 'driver') {
-                            _usernameController.text = _reviewDriverPhone;
-                          } else {
-                            _usernameController.text = _reviewPassengerPhone;
-                          }
-                          _passwordController.text = _reviewPassword;
-                        });
-                      },
+                    : (value) => setState(() => _role = value.first),
               ),
               const SizedBox(height: 20),
               PrimaryButton(
-                label: 'Sign In',
+                label: l10n.signIn,
                 icon: Icons.login_rounded,
                 isLoading: loading,
                 onPressed: () => _signIn(
@@ -236,7 +158,7 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
                             ),
                           ),
                   icon: const Icon(Icons.g_mobiledata_rounded, size: 28),
-                  label: const Text('Continue with Google'),
+                  label: Text(l10n.continueWithGoogle),
                 ),
               ],
             ],

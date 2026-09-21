@@ -37,6 +37,7 @@ class _DriverRegistrationPageState extends State<DriverRegistrationPage> {
   }
 
   Future<void> _pickDocument(DocumentType type) async {
+    final l10n = AppLocalizations.of(context)!;
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       builder: (ctx) => SafeArea(
@@ -45,12 +46,12 @@ class _DriverRegistrationPageState extends State<DriverRegistrationPage> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_camera),
-              title: const Text('Kamera'),
+              title: Text(l10n.camera),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Galeri'),
+              title: Text(l10n.gallery),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
           ],
@@ -105,12 +106,12 @@ class _DriverRegistrationPageState extends State<DriverRegistrationPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'Araç bilgileri',
+                      l10n.vehicleInfoTitle,
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Taksi moduna geçmek için araç bilgilerini ve zorunlu belgeleri yükleyin.',
+                      l10n.vehicleInfoSubtitle,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Theme.of(context).hintColor,
                           ),
@@ -118,36 +119,40 @@ class _DriverRegistrationPageState extends State<DriverRegistrationPage> {
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _makeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Marka',
-                        hintText: 'Örn. Toyota',
+                      decoration: InputDecoration(
+                        labelText: l10n.vehicleMake,
+                        hintText: l10n.vehicleMakeHint,
                       ),
-                      validator: (v) =>
-                          v?.isEmpty ?? true ? 'Marka gerekli' : null,
+                      validator: (v) => v?.isEmpty ?? true
+                          ? l10n.fieldRequired(l10n.vehicleMake)
+                          : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _modelController,
-                      decoration: const InputDecoration(
-                        labelText: 'Model',
-                        hintText: 'Örn. Corolla',
+                      decoration: InputDecoration(
+                        labelText: l10n.vehicleModel,
+                        hintText: l10n.vehicleModelHint,
                       ),
-                      validator: (v) =>
-                          v?.isEmpty ?? true ? 'Model gerekli' : null,
+                      validator: (v) => v?.isEmpty ?? true
+                          ? l10n.fieldRequired(l10n.vehicleModel)
+                          : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _yearController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Model yılı',
-                        hintText: 'Örn. 2020',
+                      decoration: InputDecoration(
+                        labelText: l10n.vehicleYear,
+                        hintText: l10n.vehicleYearHint,
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Yıl gerekli';
+                        if (v == null || v.isEmpty) {
+                          return l10n.fieldRequired(l10n.vehicleYear);
+                        }
                         final year = int.tryParse(v);
                         if (year == null || year < 1990) {
-                          return 'Geçerli bir yıl girin';
+                          return l10n.validYearRequired;
                         }
                         return null;
                       },
@@ -155,23 +160,25 @@ class _DriverRegistrationPageState extends State<DriverRegistrationPage> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _colorController,
-                      decoration: const InputDecoration(
-                        labelText: 'Renk',
-                        hintText: 'Örn. Beyaz',
+                      decoration: InputDecoration(
+                        labelText: l10n.vehicleColor,
+                        hintText: l10n.vehicleColorHint,
                       ),
-                      validator: (v) =>
-                          v?.isEmpty ?? true ? 'Renk gerekli' : null,
+                      validator: (v) => v?.isEmpty ?? true
+                          ? l10n.fieldRequired(l10n.vehicleColor)
+                          : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _plateController,
                       textCapitalization: TextCapitalization.characters,
-                      decoration: const InputDecoration(
-                        labelText: 'Plaka',
-                        hintText: 'Örn. 34 TG 01',
+                      decoration: InputDecoration(
+                        labelText: l10n.vehiclePlate,
+                        hintText: l10n.vehiclePlateHint,
                       ),
-                      validator: (v) =>
-                          v?.isEmpty ?? true ? 'Plaka gerekli' : null,
+                      validator: (v) => v?.isEmpty ?? true
+                          ? l10n.fieldRequired(l10n.vehiclePlate)
+                          : null,
                     ),
                     const SizedBox(height: 32),
                     Text(

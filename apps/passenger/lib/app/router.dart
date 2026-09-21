@@ -6,8 +6,10 @@ import 'package:taxigo_core/taxigo_core.dart';
 import '../di/locator.dart';
 import '../features/account/presentation/pages/account_page.dart';
 import '../features/account/presentation/pages/complaint_page.dart';
+import '../features/account/presentation/pages/favorites_page.dart';
 import '../features/account/presentation/pages/profile_edit_page.dart';
 import '../features/account/presentation/pages/promo_page.dart';
+import '../features/account/presentation/pages/ride_receipt_page.dart';
 import '../features/account/presentation/pages/trip_history_page.dart';
 import '../features/account/presentation/pages/wallet_page.dart';
 import '../features/active_ride/application/active_ride_bloc.dart';
@@ -35,6 +37,7 @@ import '../features/kyc/presentation/pages/pending_approval_page.dart';
 import '../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../features/ride/presentation/pages/ride_completed_page.dart';
 import '../features/ride/presentation/pages/ride_status_page.dart';
+import '../features/shell/presentation/pages/passenger_shell.dart';
 import '../features/splash/presentation/pages/splash_page.dart';
 import 'auth_refresh.dart';
 
@@ -62,7 +65,6 @@ GoRouter createAppRouter(AuthBloc authBloc) {
       final checking = auth.status == AuthStatus.initial ||
           auth.status == AuthStatus.loading;
 
-      // Never leave the user on a blank/private route while auth is unresolved.
       if (loc == '/splash') return null;
       if (checking) {
         return isPublic ? null : '/login';
@@ -71,8 +73,6 @@ GoRouter createAppRouter(AuthBloc authBloc) {
       if (!authed && !isPublic) return '/login';
 
       if (authed && (loc == '/login' || loc == '/otp')) {
-        // Do not force /home here — login/OTP listeners choose
-        // profile-setup, passenger home, or driver home.
         return null;
       }
 
@@ -87,7 +87,7 @@ GoRouter createAppRouter(AuthBloc authBloc) {
         path: '/language',
         builder: (context, state) => LanguagePickerPage(
           showContinueButton: true,
-          onContinue: () => context.go('/onboarding'),
+          onContinue: () => context.go('/login'),
         ),
       ),
       GoRoute(
@@ -118,9 +118,36 @@ GoRouter createAppRouter(AuthBloc authBloc) {
         path: '/profile-setup',
         builder: (context, state) => const ProfileSetupPage(),
       ),
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomeMapPage(),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return PassengerShell(navigationShell: navigationShell);
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/home',
+                builder: (context, state) => const HomeMapPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/trips',
+                builder: (context, state) => const TripHistoryPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/account',
+                builder: (context, state) => const AccountPage(),
+              ),
+            ],
+          ),
+        ],
       ),
       GoRoute(
         path: '/driver-home',
@@ -187,8 +214,15 @@ GoRouter createAppRouter(AuthBloc authBloc) {
         },
       ),
       GoRoute(
-        path: '/account',
-        builder: (context, state) => const AccountPage(),
+        path: '/receipt/:id',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return RideReceiptPage(rideId: id);
+        },
+      ),
+      GoRoute(
+        path: '/favorites',
+        builder: (context, state) => const FavoritesPage(),
       ),
       GoRoute(
         path: '/profile-edit',
@@ -197,10 +231,6 @@ GoRouter createAppRouter(AuthBloc authBloc) {
       GoRoute(
         path: '/wallet',
         builder: (context, state) => const WalletPage(),
-      ),
-      GoRoute(
-        path: '/trips',
-        builder: (context, state) => const TripHistoryPage(),
       ),
       GoRoute(
         path: '/promos',

@@ -21,7 +21,7 @@ class RideModel extends Equatable {
     this.estimatedFare,
     this.offeredFare,
     this.minimumFare,
-    this.isBidding = true,
+    this.isBidding = false,
     this.finalFare,
     this.distanceKm,
     this.durationMinutes,
@@ -40,6 +40,10 @@ class RideModel extends Equatable {
     this.updatedAt,
     this.driverName,
     this.vehiclePlate,
+    this.vehicleType = 'standard',
+    this.productMode = 'taxi',
+    this.scheduledAt,
+    this.passengerNote,
   });
 
   final int id;
@@ -77,8 +81,17 @@ class RideModel extends Equatable {
   final DateTime? updatedAt;
   final String? driverName;
   final String? vehiclePlate;
+  final String vehicleType;
+  final String productMode;
+  final DateTime? scheduledAt;
+  final String? passengerNote;
 
   bool get isActive => status.isActive;
+
+  bool get isScheduledUpcoming =>
+      scheduledAt != null &&
+      scheduledAt!.isAfter(DateTime.now()) &&
+      (status == RideStatus.pending || status == RideStatus.driverAssigned);
 
   RideModel copyWith({
     int? id,
@@ -116,6 +129,11 @@ class RideModel extends Equatable {
     DateTime? updatedAt,
     String? driverName,
     String? vehiclePlate,
+    String? vehicleType,
+    String? productMode,
+    DateTime? scheduledAt,
+    String? passengerNote,
+    bool clearScheduledAt = false,
   }) {
     return RideModel(
       id: id ?? this.id,
@@ -154,6 +172,11 @@ class RideModel extends Equatable {
       updatedAt: updatedAt ?? this.updatedAt,
       driverName: driverName ?? this.driverName,
       vehiclePlate: vehiclePlate ?? this.vehiclePlate,
+      vehicleType: vehicleType ?? this.vehicleType,
+      productMode: productMode ?? this.productMode,
+      scheduledAt:
+          clearScheduledAt ? null : (scheduledAt ?? this.scheduledAt),
+      passengerNote: passengerNote ?? this.passengerNote,
     );
   }
 
@@ -194,5 +217,9 @@ class RideModel extends Equatable {
         updatedAt,
         driverName,
         vehiclePlate,
+        vehicleType,
+        productMode,
+        scheduledAt,
+        passengerNote,
       ];
 }

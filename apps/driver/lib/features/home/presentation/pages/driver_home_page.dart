@@ -58,7 +58,10 @@ class _DriverHomePageState extends State<DriverHomePage> {
         final position = state.currentPosition;
         final initialTarget = position != null
             ? LatLng(position.latitude, position.longitude)
-            : const LatLng(40.4093, 49.8671);
+            : const LatLng(
+                AppConstants.defaultLatitude,
+                AppConstants.defaultLongitude,
+              );
 
         return Scaffold(
           appBar: AppBar(

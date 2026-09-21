@@ -109,6 +109,8 @@ class ActiveRidePage extends StatelessWidget {
                           subtitle: Text(ride.dropoffAddress),
                         ),
                         const SizedBox(height: 8),
+                        RideCommsBar(rideId: ride.id),
+                        const SizedBox(height: 8),
                         OutlinedButton.icon(
                           onPressed: () => _openNavigation(ride),
                           icon: const Icon(Icons.navigation),

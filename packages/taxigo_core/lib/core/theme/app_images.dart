@@ -5,11 +5,13 @@ abstract final class AppImages {
   static const String logo = '$_pkg/assets/images/taxigo_logo.png';
   static const String appLogo = logo;
   static const String background = '$_pkg/assets/images/background.png';
-  static const String bottomBackground = '$_pkg/assets/images/bottomBackground.png';
+  static const String bottomBackground =
+      '$_pkg/assets/images/bottomBackground.png';
   static const String splash = '$_pkg/assets/images/tagxi_splash.png';
   static const String loader = '$_pkg/assets/images/loader_image.png';
   static const String taxi = '$_pkg/assets/images/Taxi.png';
-  static const String defaultProfile = '$_pkg/assets/images/default_profile.png';
+  static const String defaultProfile =
+      '$_pkg/assets/images/default_profile.png';
   static const String pickLocation = '$_pkg/assets/images/pickLocation.png';
   static const String dropLocation = '$_pkg/assets/images/dropLocation.png';
   static const String mapPin = '$_pkg/assets/images/map-pin.png';
@@ -21,4 +23,25 @@ abstract final class AppImages {
   static const String bike = '$_pkg/assets/images/bike.png';
   static const String mapLightStyle = '$_pkg/assets/map/light-theme.json';
   static const String mapDarkStyle = '$_pkg/assets/map/dark-theme.json';
+
+  static const String vehicleStandard =
+      '$_pkg/assets/images/vehicle_standard.png';
+  static const String vehicleComfort =
+      '$_pkg/assets/images/vehicle_comfort.png';
+  static const String vehiclePremium =
+      '$_pkg/assets/images/vehicle_premium.png';
+  static const String vehicleVan = '$_pkg/assets/images/vehicle_van.png';
+
+  static const String historyEmpty = '$_pkg/assets/images/History_nodata.png';
+  static const String favoritesEmpty = '$_pkg/assets/images/Favloc_nodata.png';
+  static const String rideSearching = '$_pkg/assets/images/rideSearching.png';
+
+  static String vehicleForType(String type) {
+    return switch (type) {
+      'comfort' => vehicleComfort,
+      'premium' => vehiclePremium,
+      'van' => vehicleVan,
+      _ => vehicleStandard,
+    };
+  }
 }

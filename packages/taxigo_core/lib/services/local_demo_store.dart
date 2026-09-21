@@ -10,6 +10,7 @@ import '../domain/enums/payment_method.dart';
 import '../domain/enums/ride_status.dart';
 import '../domain/models/driver_model.dart';
 import '../domain/models/fare_estimate_model.dart';
+import '../domain/models/ride_comms_models.dart';
 import '../domain/models/ride_model.dart';
 import '../domain/models/user_model.dart';
 
@@ -26,6 +27,9 @@ class LocalDemoStore {
   double _todayEarnings = 125.50;
   int _nextRideId = 9001;
   final Set<String> _uploadedDocumentTypes = {};
+  final List<RideModel> _history = [];
+  final Map<int, List<RideMessageModel>> _rideMessages = {};
+  int _nextMessageId = 1;
 
   /// Active demo persona (city / taxi seed) after chip login.
   DemoAccount? _activeAccount;
@@ -305,6 +309,7 @@ class LocalDemoStore {
     final multiplier = switch (vehicleType) {
       'comfort' => 1.35,
       'premium' => 1.75,
+      'van' => 2.2,
       _ => 1.0,
     };
     final fare =
@@ -329,6 +334,10 @@ class LocalDemoStore {
     PaymentMethod paymentMethod = PaymentMethod.cash,
     String? vehicleType,
     double? offeredFare,
+    String productMode = 'taxi',
+    String matchMode = 'instant',
+    DateTime? scheduledAt,
+    String? passengerNote,
   }) {
     final estimate = estimateFare(
       pickupLatitude: pickupLatitude,
@@ -338,11 +347,17 @@ class LocalDemoStore {
       vehicleType: vehicleType,
     );
     final fare = offeredFare ?? estimate.totalFare;
+    final bidding = matchMode == 'bidding' && scheduledAt == null;
     final ride = RideModel(
       id: _nextRideId++,
       reference: 'DEMO-${DateTime.now().millisecondsSinceEpoch % 100000}',
       passengerId: passenger.id,
-      status: RideStatus.pending,
+      status: bidding
+          ? RideStatus.pending
+          : RideStatus.driverArriving,
+      driverId: bidding ? null : 1,
+      driverName: bidding ? null : 'Demo Driver',
+      vehiclePlate: bidding ? null : 'TG DEMO',
       pickupLatitude: pickupLatitude,
       pickupLongitude: pickupLongitude,
       pickupAddress: pickupAddress,
@@ -352,17 +367,32 @@ class LocalDemoStore {
       estimatedDistanceKm: estimate.distanceKm,
       estimatedDurationMinutes: estimate.estimatedDurationMinutes,
       estimatedFare: estimate.totalFare,
-      offeredFare: fare,
+      offeredFare: bidding ? fare : estimate.totalFare,
       minimumFare: 5,
-      isBidding: false,
+      isBidding: bidding,
       paymentMethod: paymentMethod,
+      vehicleType: vehicleType ?? 'standard',
+      productMode: productMode,
+      scheduledAt: scheduledAt,
+      passengerNote: passengerNote,
       createdAt: DateTime.now(),
       expiresAt: DateTime.now().add(const Duration(minutes: 15)),
     );
+    if (scheduledAt != null) {
+      _history.insert(0, ride);
+      return ride;
+    }
     _activePassengerRide = ride;
-    _pendingOffer = ride;
-    // Auto-match only in explicit demo builds — never in App Store.
-    if (AppConstants.allowDemoMode) {
+    if (bidding) {
+      _pendingOffer = ride;
+    } else {
+      _pendingOffer = null;
+      if (ride.driverId != null) {
+        _activeDriverRide = ride;
+      }
+    }
+    // Instant without a pre-assigned driver: soft auto-match in demo only.
+    if (AppConstants.allowDemoMode && !bidding && ride.status == RideStatus.pending) {
       Future<void>.delayed(const Duration(seconds: 2), () {
         if (_activePassengerRide?.id != ride.id) return;
         if (_activePassengerRide?.status != RideStatus.pending) return;
@@ -442,7 +472,7 @@ class LocalDemoStore {
   }
 
   List<RideModel> history() {
-    final rides = <RideModel>[];
+    final rides = <RideModel>[..._history];
     if (_activePassengerRide != null) rides.add(_activePassengerRide!);
     if (_activeDriverRide != null &&
         _activeDriverRide!.id != _activePassengerRide?.id) {
@@ -523,6 +553,30 @@ class LocalDemoStore {
     if (_pendingOffer?.id == updated.id) {
       _pendingOffer = updated.status == RideStatus.pending ? updated : null;
     }
+  }
+
+  List<RideMessageModel> rideMessages(int rideId) {
+    return List.unmodifiable(_rideMessages[rideId] ?? const []);
+  }
+
+  RideMessageModel addRideMessage(
+    int rideId,
+    String body,
+    String? templateKey,
+  ) {
+    final msg = RideMessageModel(
+      id: _nextMessageId++,
+      rideId: rideId,
+      senderId: 1,
+      body: body,
+      senderName: _activeAccount?.name ?? 'You',
+      templateKey: templateKey,
+      isMine: true,
+      createdAt: DateTime.now(),
+    );
+    final list = _rideMessages.putIfAbsent(rideId, () => []);
+    list.add(msg);
+    return msg;
   }
 
   Set<Marker> nearbyDriverMarkers(

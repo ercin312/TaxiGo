@@ -196,6 +196,19 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
+        FareTariff::query()->updateOrCreate(
+            ['name' => 'Van Transfer', 'vehicle_type' => 'van'],
+            [
+                'base_fare' => 8.00,
+                'per_km_rate' => 2.80,
+                'per_minute_rate' => 0.55,
+                'minimum_fare' => 20.00,
+                'surge_multiplier' => 1.0,
+                'currency' => config('taxigo.currency', 'USD'),
+                'is_active' => true,
+            ],
+        );
+
         Setting::setValue(
             'commission_rate',
             config('taxigo.commission_rate', 0.15),

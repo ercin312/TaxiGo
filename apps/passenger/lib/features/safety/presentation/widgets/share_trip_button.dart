@@ -58,8 +58,8 @@ class _ShareTripButtonState extends State<ShareTripButton> {
         await Clipboard.setData(ClipboardData(text: message));
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Paylaşım linki panoya kopyalandı'),
+          SnackBar(
+            content: Text(l10n.shareLinkCopied),
           ),
         );
       }
