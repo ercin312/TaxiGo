@@ -15,6 +15,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "728811081033-hdrpdpdejcthmujps33hircv99cjs9t2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.alanyaproje.taxigo",
+            "certificate_hash": "d15c9a02ffddd7a430986b3f95ea4f12fea6e917"
+          }
+        },
+        {
+          "client_id": "728811081033-q3tviqpmreqapcblo2ranak9d7ptt8a5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.alanyaproje.taxigo",
+            "certificate_hash": "ef0ba7dafd44a40e2b11ae8601f4514660ca65c1"
+          }
+        },
+        {
           "client_id": "728811081033-qg42felr8cvkf5nqa37rim4p1b5dggmf.apps.googleusercontent.com",
           "client_type": 3
         }

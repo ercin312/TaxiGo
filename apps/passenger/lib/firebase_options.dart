@@ -36,7 +36,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBO3xY5spGJvVnTLP1B-GswxWbv2NFCb3M',
-    appId: '1:728811081033:android:f5f0f0e02b3d6b51bade98',
+    appId: '1:728811081033:android:65fc3e124f2ab922bade98',
     messagingSenderId: '728811081033',
     projectId: 'taxigo-e7b4b',
     databaseURL: 'https://taxigo-e7b4b-default-rtdb.firebaseio.com',

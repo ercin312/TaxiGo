@@ -69,10 +69,15 @@ class SocialAuthService {
     );
     const serverClientId = String.fromEnvironment(
       'TAXIGO_GOOGLE_SERVER_CLIENT_ID',
+      defaultValue:
+          '728811081033-qg42felr8cvkf5nqa37rim4p1b5dggmf.apps.googleusercontent.com',
     );
     return GoogleSignIn(
       scopes: const ['email', 'profile'],
-      clientId: iosClientId.isEmpty ? null : iosClientId,
+      // clientId is iOS-only; Android uses google-services.json + SHA-1.
+      clientId: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
+          ? (iosClientId.isEmpty ? null : iosClientId)
+          : null,
       serverClientId: serverClientId.isEmpty ? null : serverClientId,
     );
   }
