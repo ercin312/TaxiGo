@@ -19,6 +19,7 @@ class DriverHomeBloc extends Bloc<DriverHomeEvent, DriverHomeState> {
     on<DriverHomeToggleOnline>(_onToggleOnline);
     on<DriverHomeLocationUpdated>(_onLocationUpdated);
     on<DriverHomeIncomingRideReceived>(_onIncomingRideReceived);
+    on<DriverHomeActiveRideDetected>(_onActiveRideDetected);
     on<DriverHomeAcceptRide>(_onAcceptRide);
     on<DriverHomeSubmitBid>(_onSubmitBid);
     on<DriverHomeRejectRide>(_onRejectRide);
@@ -231,6 +232,18 @@ class DriverHomeBloc extends Bloc<DriverHomeEvent, DriverHomeState> {
     }
   }
 
+  void _onActiveRideDetected(
+    DriverHomeActiveRideDetected event,
+    Emitter<DriverHomeState> emit,
+  ) {
+    final current = state;
+    if (current is! DriverHomeReady || current.activeRide != null) return;
+    emit(current.copyWith(
+      activeRide: event.ride,
+      clearIncomingRide: true,
+    ));
+  }
+
   Future<void> _onAcceptRide(
     DriverHomeAcceptRide event,
     Emitter<DriverHomeState> emit,
@@ -358,6 +371,13 @@ class DriverHomeBloc extends Bloc<DriverHomeEvent, DriverHomeState> {
         return;
       }
 
+      final activeResult = await _driverRepository.getActiveRide();
+      final assigned = activeResult.fold((_) => null, (ride) => ride);
+      if (assigned != null) {
+        add(DriverHomeActiveRideDetected(assigned));
+        return;
+      }
+
       final result = await _driverRepository.getPendingRides();
       result.fold((_) {}, (rides) {
         if (rides.isNotEmpty) {
@@ -378,6 +398,14 @@ class DriverHomeBloc extends Bloc<DriverHomeEvent, DriverHomeState> {
       if (state is! DriverHomeReady) return;
       final current = state as DriverHomeReady;
       if (!current.isOnline || current.activeRide != null) return;
+
+      // Instant assign may arrive as ride_assigned — check active first.
+      final activeResult = await _driverRepository.getActiveRide();
+      final assigned = activeResult.fold((_) => null, (ride) => ride);
+      if (assigned != null) {
+        add(DriverHomeActiveRideDetected(assigned));
+        return;
+      }
 
       final result = await _driverRepository.getPendingRides();
       result.fold((_) {}, (rides) {

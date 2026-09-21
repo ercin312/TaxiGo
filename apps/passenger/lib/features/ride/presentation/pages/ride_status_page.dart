@@ -399,7 +399,9 @@ class _RideStatusViewState extends State<_RideStatusView>
               onPressed: () => context.go('/home'),
             ),
             actions: [
-              RideCommsBar(rideId: widget.rideId, compact: true),
+              if (status != RideStatus.pending) ...[
+                RideCommsBar(rideId: widget.rideId, compact: true),
+              ],
               ShareTripButton(rideId: widget.rideId),
               const SizedBox(width: 8),
               SosButton(rideId: widget.rideId),

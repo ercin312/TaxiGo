@@ -384,6 +384,10 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     }
 
     emit(state.copyWith(status: BookingStatus.loading, clearError: true));
+    final biddingOn = locator<FeatureModulesService>().bidding;
+    final effectiveMatch = scheduledAt != null || !biddingOn
+        ? 'instant'
+        : state.matchMode;
     final result = await _rideRepository.requestRide(
       pickupLatitude: state.pickupLat!,
       pickupLongitude: state.pickupLng!,
@@ -394,11 +398,11 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
       paymentMethod: state.paymentMethod,
       vehicleType: state.vehicleType,
       promoCode: state.promoCode,
-      offeredFare: state.matchMode == 'bidding'
+      offeredFare: effectiveMatch == 'bidding'
           ? (state.offeredFare ?? state.estimate?.totalFare)
           : state.estimate?.totalFare,
       productMode: state.productMode,
-      matchMode: scheduledAt != null ? 'instant' : state.matchMode,
+      matchMode: effectiveMatch,
       scheduledAt: scheduledAt,
       passengerNote: state.passengerNote,
     );

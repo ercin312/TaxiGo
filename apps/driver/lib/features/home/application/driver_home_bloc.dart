@@ -19,6 +19,7 @@ class DriverHomeBloc extends Bloc<DriverHomeEvent, DriverHomeState> {
     on<DriverHomeToggleOnline>(_onToggleOnline);
     on<DriverHomeLocationUpdated>(_onLocationUpdated);
     on<DriverHomeIncomingRideReceived>(_onIncomingRideReceived);
+    on<DriverHomeActiveRideDetected>(_onActiveRideDetected);
     on<DriverHomeAcceptRide>(_onAcceptRide);
     on<DriverHomeRejectRide>(_onRejectRide);
     on<DriverHomeRefreshEarnings>(_onRefreshEarnings);
@@ -188,6 +189,18 @@ class DriverHomeBloc extends Bloc<DriverHomeEvent, DriverHomeState> {
     }
   }
 
+  void _onActiveRideDetected(
+    DriverHomeActiveRideDetected event,
+    Emitter<DriverHomeState> emit,
+  ) {
+    final current = state;
+    if (current is! DriverHomeReady || current.activeRide != null) return;
+    emit(current.copyWith(
+      activeRide: event.ride,
+      clearIncomingRide: true,
+    ));
+  }
+
   Future<void> _onAcceptRide(
     DriverHomeAcceptRide event,
     Emitter<DriverHomeState> emit,
@@ -274,6 +287,14 @@ class DriverHomeBloc extends Bloc<DriverHomeEvent, DriverHomeState> {
       if (state is! DriverHomeReady) return;
       final current = state as DriverHomeReady;
       if (!current.isOnline || current.activeRide != null) return;
+
+      // Instant-match assigns driver_id server-side; surface via active ride.
+      final activeResult = await _driverRepository.getActiveRide();
+      final assigned = activeResult.fold((_) => null, (ride) => ride);
+      if (assigned != null) {
+        add(DriverHomeActiveRideDetected(assigned));
+        return;
+      }
 
       final result = await _driverRepository.getPendingRides();
       result.fold((_) {}, (rides) {

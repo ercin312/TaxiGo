@@ -112,10 +112,12 @@ class _HomeMapViewState extends State<_HomeMapView> {
     return BlocConsumer<HomeBloc, HomeState>(
       listener: (context, state) {
         final ride = state.activeRide;
-        if (ride != null &&
-            ride.isActive &&
-            ride.status != RideStatus.pending) {
-          context.go('/ride/${ride.id}');
+        if (ride != null && ride.isActive) {
+          if (ride.status == RideStatus.pending && ride.isBidding) {
+            context.go('/bidding/${ride.id}');
+          } else {
+            context.go('/ride/${ride.id}');
+          }
         }
         final me = state.currentLatLng;
         if (me != null) {

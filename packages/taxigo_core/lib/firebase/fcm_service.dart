@@ -112,7 +112,7 @@ class FcmService {
       return;
     }
 
-    if (type == 'ride_request') {
+    if (type == 'ride_request' || type == 'ride_assigned') {
       final rideId = int.tryParse(data['ride_id']?.toString() ?? '');
       if (rideId != null) {
         SystemSound.play(SystemSoundType.alert);
@@ -155,13 +155,16 @@ class FcmService {
   Future<void> _showLocalNotification(RemoteMessage message) async {
     final notification = message.notification;
     final isOtp = message.data['type'] == 'otp';
-    final isRide = message.data['type'] == 'ride_request';
+    final isRide = message.data['type'] == 'ride_request' ||
+        message.data['type'] == 'ride_assigned';
     final channelId = isOtp ? 'taxigo_otp' : 'taxigo_rides';
     final channelName = isOtp ? 'OTP Verification' : 'Ride Updates';
 
     final title = notification?.title ??
         (isRide
-            ? 'Yeni yolculuk isteği'
+            ? (message.data['type'] == 'ride_assigned'
+                ? 'Yolculuk atandı'
+                : 'Yeni yolculuk isteği')
             : (isOtp ? 'TaxiGo Verification' : 'TaxiGo'));
     final body = notification?.body ??
         (isRide

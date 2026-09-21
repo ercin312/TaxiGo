@@ -7,6 +7,7 @@ use App\Exceptions\InvalidRideTransitionException;
 use App\Http\Controllers\Controller;
 use App\Models\Ride;
 use App\Services\FirebaseRtdbService;
+use App\Services\FeatureModuleService;
 use App\Services\RideBidService;
 use App\Services\RideMatchingService;
 use App\Services\RideSettlementService;
@@ -24,6 +25,13 @@ class DriverRideController extends Controller
         protected RideBidService $bidService,
         protected RideMatchingService $matchingService,
     ) {}
+
+    protected function ensureBiddingEnabled(): void
+    {
+        if (app(FeatureModuleService::class)->disabled('bidding')) {
+            abort(403, 'Bidding module is disabled.');
+        }
+    }
 
     public function pending(Request $request): JsonResponse
     {
@@ -115,6 +123,8 @@ class DriverRideController extends Controller
         }
 
         if ($ride->is_bidding) {
+            $this->ensureBiddingEnabled();
+
             try {
                 $amount = (float) ($ride->offered_fare ?? $ride->estimated_fare);
                 $bid = $this->bidService->submitBid($ride, $driver, $amount);
@@ -149,6 +159,8 @@ class DriverRideController extends Controller
 
     public function bid(Request $request, Ride $ride): JsonResponse
     {
+        $this->ensureBiddingEnabled();
+
         $driver = $this->getDriver($request);
 
         $validated = $request->validate([

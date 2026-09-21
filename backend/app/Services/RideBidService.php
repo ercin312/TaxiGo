@@ -45,6 +45,10 @@ class RideBidService
 
     public function submitBid(Ride $ride, Driver $driver, float $amount): RideBid
     {
+        if (! $ride->is_bidding) {
+            throw new \RuntimeException('This ride is not accepting bids.');
+        }
+
         if ($ride->status !== RideStatus::Pending || $ride->driver_id !== null) {
             throw new \RuntimeException('Ride is no longer accepting bids.');
         }

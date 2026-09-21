@@ -33,6 +33,15 @@ class DriverHomeIncomingRideReceived extends DriverHomeEvent {
   List<Object?> get props => [ride];
 }
 
+class DriverHomeActiveRideDetected extends DriverHomeEvent {
+  const DriverHomeActiveRideDetected(this.ride);
+
+  final RideModel ride;
+
+  @override
+  List<Object?> get props => [ride];
+}
+
 class DriverHomeAcceptRide extends DriverHomeEvent {
   const DriverHomeAcceptRide();
 }
