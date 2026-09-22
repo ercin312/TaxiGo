@@ -19,6 +19,8 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
     with SingleTickerProviderStateMixin {
   late final AnimationController _radar;
   DateTime? _startedAt;
+  GoogleMapController? _mapController;
+  bool _markersReady = false;
 
   @override
   void initState() {
@@ -28,12 +30,16 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat();
-    MapMarkerIcons.ensureLoaded();
+    MapMarkerIcons.ensureLoaded().then((_) {
+      if (!mounted) return;
+      setState(() => _markersReady = true);
+    });
   }
 
   @override
   void dispose() {
     _radar.dispose();
+    _mapController?.dispose();
     super.dispose();
   }
 
@@ -42,9 +48,23 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
     return DateTime.now().difference(start).inMinutes.clamp(0, 99);
   }
 
+  Future<void> _recenterMap(LatLng target) async {
+    final controller = _mapController;
+    if (controller == null) return;
+    await controller.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: target, zoom: 15.2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final screenH = MediaQuery.sizeOf(context).height;
+    // Keep a clear map band above the sheet so pin + radar stay visible.
+    final sheetFactor = 0.58;
+    final mapPadBottom = screenH * sheetFactor;
 
     return BlocConsumer<BiddingBloc, BiddingState>(
       listener: (context, state) {
@@ -58,6 +78,10 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.errorMessage!)),
           );
+        } else if (state.ride != null) {
+          _recenterMap(
+            LatLng(state.ride!.pickupLatitude, state.ride!.pickupLongitude),
+          );
         }
       },
       builder: (context, state) {
@@ -70,6 +94,26 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
                 AppConstants.defaultLongitude,
               )
             : LatLng(ride.pickupLatitude, ride.pickupLongitude);
+        final dropoff = ride == null
+            ? null
+            : LatLng(ride.dropoffLatitude, ride.dropoffLongitude);
+
+        // Rebuild markers after custom icons load.
+        final markers = <Marker>{
+          Marker(
+            markerId: const MarkerId('pickup'),
+            position: pickup,
+            icon: MapMarkerIcons.pickupOrDefault,
+            anchor: const Offset(0.5, 1),
+          ),
+          if (dropoff != null)
+            Marker(
+              markerId: const MarkerId('dropoff'),
+              position: dropoff,
+              icon: MapMarkerIcons.dropoffOrDefault,
+              anchor: const Offset(0.5, 1),
+            ),
+        };
 
         return Scaffold(
           body: ride == null
@@ -80,20 +124,26 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
                       child: GoogleMap(
                         initialCameraPosition: CameraPosition(
                           target: pickup,
-                          zoom: 14.5,
+                          zoom: 15.2,
                         ),
+                        padding: EdgeInsets.only(bottom: mapPadBottom),
                         myLocationButtonEnabled: false,
                         zoomControlsEnabled: false,
-                        markers: {
-                          Marker(
-                            markerId: const MarkerId('pickup'),
-                            position: pickup,
-                            icon: MapMarkerIcons.pickupOrDefault,
-                          ),
+                        compassEnabled: false,
+                        mapToolbarEnabled: false,
+                        markers: markers,
+                        onMapCreated: (controller) async {
+                          _mapController = controller;
+                          await _recenterMap(pickup);
                         },
                       ),
                     ),
-                    Positioned.fill(
+                    // Radar only in the visible map band (above the sheet).
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: screenH - mapPadBottom,
                       child: IgnorePointer(
                         child: AnimatedBuilder(
                           animation: _radar,
@@ -101,17 +151,51 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
                             return CustomPaint(
                               painter: _RadarPainter(
                                 progress: _radar.value,
-                                color: AppColors.accent.withValues(alpha: 0.35),
+                                color: AppColors.accent,
                               ),
                             );
                           },
                         ),
                       ),
                     ),
+                    // Visible pulse pin in the map band (search affordance).
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: screenH - mapPadBottom,
+                      child: IgnorePointer(
+                        child: Center(
+                          child: AnimatedBuilder(
+                            animation: _radar,
+                            builder: (context, _) {
+                              final pulse = 0.88 + (_radar.value * 0.18);
+                              return Transform.scale(
+                                scale: pulse,
+                                child: Icon(
+                                  Icons.location_on_rounded,
+                                  size: 52,
+                                  color: AppColors.success.withValues(
+                                    alpha: 0.95,
+                                  ),
+                                  shadows: const [
+                                    Shadow(
+                                      color: Colors.black38,
+                                      blurRadius: 8,
+                                      offset: Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
                     Align(
                       alignment: Alignment.bottomCenter,
                       child: AnimatedBottomSheet(
-                        maxHeightFactor: 0.72,
+                        maxHeightFactor: sheetFactor,
                         child: SingleChildScrollView(
                           padding: EdgeInsets.fromLTRB(
                             16,
@@ -148,10 +232,9 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
                                           borderRadius:
                                               BorderRadius.circular(8),
                                           child: LinearProgressIndicator(
-                                            value: 0.72,
                                             minHeight: 8,
                                             backgroundColor: AppColors.mist,
-                                            color: AppColors.ink,
+                                            color: AppColors.accent,
                                           ),
                                         ),
                                         const SizedBox(height: 6),
@@ -369,20 +452,28 @@ class _RadarPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height * 0.38);
-    final paint = Paint()
+    final center = Offset(size.width / 2, size.height * 0.52);
+    final stroke = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+      ..strokeWidth = 2.5;
+    final fill = Paint()..style = PaintingStyle.fill;
+
     for (var i = 0; i < 3; i++) {
       final t = (progress + i / 3) % 1.0;
-      paint.color = color.withValues(alpha: (1 - t) * 0.45);
-      canvas.drawCircle(center, 28 + t * 110, paint);
+      final radius = 18 + t * (size.shortestSide * 0.42);
+      stroke.color = color.withValues(alpha: (1 - t) * 0.55);
+      canvas.drawCircle(center, radius, stroke);
     }
+
+    fill.color = color.withValues(alpha: 0.18);
+    canvas.drawCircle(center, 14, fill);
+    fill.color = color.withValues(alpha: 0.85);
+    canvas.drawCircle(center, 5, fill);
   }
 
   @override
   bool shouldRepaint(covariant _RadarPainter oldDelegate) =>
-      oldDelegate.progress != progress;
+      oldDelegate.progress != progress || oldDelegate.color != color;
 }
 
 class _Line extends StatelessWidget {
