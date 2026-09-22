@@ -208,7 +208,8 @@ class _SplashPageState extends State<SplashPage>
                           child: Container(
                             width: _logoSize,
                             height: _logoSize,
-                            padding: const EdgeInsets.all(22),
+                            padding: const EdgeInsets.all(8),
+                            clipBehavior: Clip.antiAlias,
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(44),
@@ -233,14 +234,19 @@ class _SplashPageState extends State<SplashPage>
                                 ),
                               ],
                             ),
-                            child: Image.asset(
-                              AppImages.logo,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(
-                                Icons.local_taxi_rounded,
-                                size: 88,
-                                color: AppColors.accent,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(36),
+                              child: Image.asset(
+                                AppImages.logo,
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(
+                                  Icons.local_taxi_rounded,
+                                  size: 88,
+                                  color: AppColors.accent,
+                                ),
                               ),
                             ),
                           ),

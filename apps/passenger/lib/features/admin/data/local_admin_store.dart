@@ -28,6 +28,11 @@ class LocalAdminStore {
             (k, v) => MapEntry(k.toString(), v == true || v == 1 || v == '1'),
           );
         }
+        // Prior seeds defaulted demo_login off; enable so map fleet works.
+        if (modules.isNotEmpty && modules['demo_login'] != true) {
+          modules['demo_login'] = true;
+          await persist();
+        }
         if (users.isNotEmpty) return;
       }
     }
@@ -489,7 +494,7 @@ class LocalAdminStore {
 
     modules = {
       'otp_login': true,
-      'demo_login': false,
+      'demo_login': true,
       'directions_fare': true,
       'places_autocomplete': true,
       'ride_settlement': true,

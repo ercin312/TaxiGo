@@ -101,7 +101,7 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
                 textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
                   labelText: '${l10n.phoneNumber} / Admin',
-                  hintText: 'erhan',
+                  hintText: l10n.phoneNumber,
                   prefixIcon: const Icon(Icons.person_outline_rounded),
                 ),
               ),

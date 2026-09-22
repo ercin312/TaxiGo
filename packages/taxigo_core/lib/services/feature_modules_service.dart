@@ -45,6 +45,25 @@ class FeatureModulesService {
     if (prefs != null) {
       await prefs.setString(_overrideKey, jsonEncode(_overrides));
     }
+    _notifyChanged(key, enabled);
+  }
+
+  final List<void Function(String key, bool enabled)> _listeners = [];
+
+  void addChangeListener(void Function(String key, bool enabled) listener) {
+    _listeners.add(listener);
+  }
+
+  void removeChangeListener(void Function(String key, bool enabled) listener) {
+    _listeners.remove(listener);
+  }
+
+  void _notifyChanged(String key, bool enabled) {
+    for (final listener in List.of(_listeners)) {
+      try {
+        listener(key, enabled);
+      } catch (_) {}
+    }
   }
 
   Future<void> clearOverrides() async {

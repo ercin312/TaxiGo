@@ -65,11 +65,7 @@ class SosButton extends StatelessWidget {
         await _dialEmergency();
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${l10n.sosSent} (yerel oturum — sunucu bildirimi için OTP/sosyal giriş gerekir)',
-              ),
-            ),
+            SnackBar(content: Text(l10n.sosSent)),
           );
         }
         return;

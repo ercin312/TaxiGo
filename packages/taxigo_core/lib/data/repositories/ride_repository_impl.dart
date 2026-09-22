@@ -304,6 +304,7 @@ class RideRepositoryImpl implements RideRepository {
   @override
   Future<Either<String, List<RideBidModel>>> getRideBids(int rideId) async {
     if (await _isLocal) {
+      if (!_demo.isDemoActive) return const Right([]);
       final ride = _demo.getRide(rideId);
       if (ride == null) return const Right([]);
       // Virtual auto-assign — no live bids needed.
@@ -315,7 +316,7 @@ class RideRepositoryImpl implements RideRepository {
           driverId: 7101,
           amount: ride.offeredFare ?? ride.estimatedFare ?? 10,
           status: 'pending',
-          expiresAt: DateTime.now().add(const Duration(minutes: 2)),
+          expiresAt: _demo.bidExpiresAt(rideId),
           driverName: 'Demo Taksi',
           driverRating: 4.9,
           vehicleDescription: 'Toyota Corolla · 34 TG 01',
@@ -341,6 +342,7 @@ class RideRepositoryImpl implements RideRepository {
   Future<Either<String, RideModel>> acceptBid(int rideId, int bidId) async {
     if (await _isLocal) {
       _demo.acceptAsDriver(rideId, 7101);
+      _demo.clearBidExpiry(rideId);
       final ride = _demo.getRide(rideId);
       if (ride == null) return const Left('Yolculuk bulunamadı');
       return Right(ride);

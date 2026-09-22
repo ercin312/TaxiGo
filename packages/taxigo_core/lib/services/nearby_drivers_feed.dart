@@ -100,6 +100,8 @@ class NearbyDriversCoordinator implements NearbyDriversFeed {
       );
     } else if (_demoAllowed) {
       await _ensureDemo(center);
+    } else {
+      _emit(const []);
     }
   }
 
@@ -142,10 +144,19 @@ class NearbyDriversCoordinator implements NearbyDriversFeed {
   }
 
   Future<void> _ensureDemo(LatLng center) async {
+    if (!_demoAllowed) {
+      await _pauseDemo();
+      return;
+    }
     if (_demoRunning || _lastLive.isNotEmpty) return;
     _demoRunning = true;
     await _demoSub?.cancel();
     _demoSub = _demo.stream.listen((snapshots) {
+      if (!_demoAllowed) {
+        unawaited(_pauseDemo());
+        _emit(const []);
+        return;
+      }
       if (_lastLive.isNotEmpty) return; // live always wins
       _emit(
         snapshots

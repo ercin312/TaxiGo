@@ -130,6 +130,9 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<HomeLocationUpdated>(_onLocationUpdated);
     on<HomeRefreshDrivers>(_onRefreshDrivers);
     on<HomeFleetTick>(_onFleetTick);
+    try {
+      locator<FeatureModulesService>().addChangeListener(_onModuleChanged);
+    } catch (_) {}
   }
 
   final RideRepository _rideRepository;
@@ -138,6 +141,11 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   StreamSubscription<List<NearbyDriverPresence>>? _feedSub;
   StreamSubscription<Position>? _positionSub;
   bool _feedBootstrapped = false;
+
+  void _onModuleChanged(String key, bool enabled) {
+    if (key != 'demo_login' || isClosed) return;
+    add(const HomeRefreshDrivers());
+  }
 
   Future<void> _onStarted(HomeStarted event, Emitter<HomeState> emit) async {
     emit(state.copyWith(status: HomeStatus.loading));
@@ -311,6 +319,9 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
 
   @override
   Future<void> close() async {
+    try {
+      locator<FeatureModulesService>().removeChangeListener(_onModuleChanged);
+    } catch (_) {}
     await _positionSub?.cancel();
     await _feedSub?.cancel();
     await _feed.dispose();

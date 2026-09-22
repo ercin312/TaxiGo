@@ -75,10 +75,35 @@ class _RideStatusViewState extends State<_RideStatusView>
         setState(() {});
       }
     });
+    try {
+      passengerGetIt<FeatureModulesService>()
+          .addChangeListener(_onDemoModuleChanged);
+    } catch (_) {}
+  }
+
+  void _onDemoModuleChanged(String key, bool enabled) {
+    if (key != 'demo_login' || !mounted) return;
+    final ride = context.read<RideBloc>().state.ride;
+    if (ride == null) return;
+    if (!enabled) {
+      _stopDemoMotion();
+      _approachStarted = false;
+      _tripStarted = false;
+      unawaited(_onRideUpdated(ride));
+      return;
+    }
+    // Demo turned on mid-ride: restart approach/trip animation.
+    _approachStarted = false;
+    _tripStarted = false;
+    unawaited(_onRideUpdated(ride));
   }
 
   @override
   void dispose() {
+    try {
+      passengerGetIt<FeatureModulesService>()
+          .removeChangeListener(_onDemoModuleChanged);
+    } catch (_) {}
     _moveController?.dispose();
     _pulseController.dispose();
     _mapController?.dispose();
@@ -138,31 +163,33 @@ class _RideStatusViewState extends State<_RideStatusView>
 
   Future<void> _onRideUpdated(RideModel ride) async {
     final demo = _demoMotionEnabled;
-    // Production without demo: status-driven UI + live driver GPS — no fake motion.
-    if (!demo) {
-      final nextPhase = _isTrip(ride.status)
-          ? _TrackPhase.trip
-          : _isApproach(ride.status)
-              ? _TrackPhase.approach
-              : ride.status == RideStatus.completed
-                  ? _TrackPhase.done
-                  : _TrackPhase.waiting;
-      if (_phase != nextPhase) {
-        setState(() => _phase = nextPhase);
+
+    // Demo ON: always drive the fake taxi toward pickup / dropoff.
+    if (demo) {
+      if (_isApproach(ride.status) && !_approachStarted) {
+        await _startApproach(ride);
+        return;
       }
-      if (_isApproach(ride.status) || _isTrip(ride.status)) {
-        await _ensureLiveRoute(ride);
+      if (_isTrip(ride.status) && !_tripStarted) {
+        await _startTrip(ride);
       }
       return;
     }
 
-    // Demo / Super Admin: animate taxi & transfer toward pickup, then trip.
-    if (_isApproach(ride.status) && !_approachStarted) {
-      await _startApproach(ride);
-      return;
+    // Demo OFF: status-driven UI + live driver GPS only — no fake motion.
+    _stopDemoMotion();
+    final nextPhase = _isTrip(ride.status)
+        ? _TrackPhase.trip
+        : _isApproach(ride.status)
+            ? _TrackPhase.approach
+            : ride.status == RideStatus.completed
+                ? _TrackPhase.done
+                : _TrackPhase.waiting;
+    if (_phase != nextPhase) {
+      setState(() => _phase = nextPhase);
     }
-    if (_isTrip(ride.status) && !_tripStarted) {
-      await _startTrip(ride);
+    if (_isApproach(ride.status) || _isTrip(ride.status)) {
+      await _ensureLiveRoute(ride);
     }
   }
 
@@ -174,7 +201,14 @@ class _RideStatusViewState extends State<_RideStatusView>
     }
   }
 
+  void _stopDemoMotion() {
+    _moveController?.stop();
+    _moveController?.dispose();
+    _moveController = null;
+  }
+
   /// Production route line (pickup → dropoff or driver → pickup). No fake motion.
+  /// Must NOT set [_approachStarted] — that flag is reserved for demo animation.
   Future<void> _ensureLiveRoute(RideModel ride) async {
     final pickup = LatLng(ride.pickupLatitude, ride.pickupLongitude);
     final dropoff = LatLng(ride.dropoffLatitude, ride.dropoffLongitude);
@@ -186,9 +220,6 @@ class _RideStatusViewState extends State<_RideStatusView>
     }
     if (_isTrip(ride.status)) {
       _tripStarted = true;
-      _approachStarted = true;
-    } else {
-      _approachStarted = true;
     }
 
     final result = await passengerGetIt<MapsService>().getDirections(
@@ -197,7 +228,7 @@ class _RideStatusViewState extends State<_RideStatusView>
       destinationLat: destination.latitude,
       destinationLng: destination.longitude,
     );
-    if (!mounted) return;
+    if (!mounted || _demoMotionEnabled) return;
     final points = result.fold(
       (_) => [origin, destination],
       (d) => d.points.length >= 2 ? d.points : [origin, destination],
@@ -207,6 +238,7 @@ class _RideStatusViewState extends State<_RideStatusView>
       _denseRoute = RouteGeometry.densify(points, stepMeters: 12);
       _routeIndex = 0;
       _progress = 0;
+      _taxiPosition ??= points.first;
     });
     await _fitBounds(points);
   }
@@ -238,6 +270,7 @@ class _RideStatusViewState extends State<_RideStatusView>
 
   /// Matched taxi moves from a nearby road point → passenger pickup only.
   Future<void> _startApproach(RideModel ride) async {
+    if (_approachStarted) return;
     _approachStarted = true;
     setState(() => _phase = _TrackPhase.approach);
 
@@ -248,19 +281,32 @@ class _RideStatusViewState extends State<_RideStatusView>
       pickup.longitude - 0.0045,
     );
 
-    final result = await passengerGetIt<MapsService>().getDirections(
-      originLat: start.latitude,
-      originLng: start.longitude,
-      destinationLat: pickup.latitude,
-      destinationLng: pickup.longitude,
-    );
+    // Animate immediately on a straight path; refine with Directions if fast.
+    var points = <LatLng>[start, pickup];
+    try {
+      final result = await passengerGetIt<MapsService>()
+          .getDirections(
+            originLat: start.latitude,
+            originLng: start.longitude,
+            destinationLat: pickup.latitude,
+            destinationLng: pickup.longitude,
+          )
+          .timeout(const Duration(seconds: 4));
+      if (!mounted || !_demoMotionEnabled) return;
+      points = result.fold(
+        (_) => points,
+        (d) => d.points.length >= 2 ? d.points : points,
+      );
+    } catch (_) {
+      // Keep straight-line fallback — demo must not stall on Maps.
+    }
 
-    if (!mounted) return;
-    final points = result.fold(
-      (_) => [start, pickup],
-      (d) => d.points.length >= 2 ? d.points : [start, pickup],
-    );
+    if (!mounted || !_demoMotionEnabled) return;
     final dense = RouteGeometry.densify(points, stepMeters: 10);
+    if (dense.isEmpty) {
+      _approachStarted = false;
+      return;
+    }
 
     setState(() {
       _routePoints = points;
@@ -273,12 +319,12 @@ class _RideStatusViewState extends State<_RideStatusView>
       _progress = 0;
     });
 
-    await _fitBounds(points);
+    unawaited(_fitBounds(points));
     _runMoveAnimation(
       durationSeconds: (RouteGeometry.pathLengthMeters(dense) / 45)
-          .clamp(14.0, 35.0),
+          .clamp(12.0, 28.0),
       onDone: () {
-        if (!mounted) return;
+        if (!mounted || !_demoMotionEnabled) return;
         setState(() {
           _taxiPosition = pickup;
           _progress = 1;
@@ -290,25 +336,36 @@ class _RideStatusViewState extends State<_RideStatusView>
   }
 
   Future<void> _startTrip(RideModel ride) async {
+    if (_tripStarted) return;
     _tripStarted = true;
     setState(() => _phase = _TrackPhase.trip);
 
     final pickup = LatLng(ride.pickupLatitude, ride.pickupLongitude);
     final dropoff = LatLng(ride.dropoffLatitude, ride.dropoffLongitude);
 
-    final result = await passengerGetIt<MapsService>().getDirections(
-      originLat: pickup.latitude,
-      originLng: pickup.longitude,
-      destinationLat: dropoff.latitude,
-      destinationLng: dropoff.longitude,
-    );
+    var points = <LatLng>[pickup, dropoff];
+    try {
+      final result = await passengerGetIt<MapsService>()
+          .getDirections(
+            originLat: pickup.latitude,
+            originLng: pickup.longitude,
+            destinationLat: dropoff.latitude,
+            destinationLng: dropoff.longitude,
+          )
+          .timeout(const Duration(seconds: 4));
+      if (!mounted || !_demoMotionEnabled) return;
+      points = result.fold(
+        (_) => points,
+        (d) => d.points.length >= 2 ? d.points : points,
+      );
+    } catch (_) {}
 
-    if (!mounted) return;
-    final points = result.fold(
-      (_) => [pickup, dropoff],
-      (d) => d.points.length >= 2 ? d.points : [pickup, dropoff],
-    );
+    if (!mounted || !_demoMotionEnabled) return;
     final dense = RouteGeometry.densify(points, stepMeters: 10);
+    if (dense.isEmpty) {
+      _tripStarted = false;
+      return;
+    }
 
     setState(() {
       _routePoints = points;
@@ -321,12 +378,12 @@ class _RideStatusViewState extends State<_RideStatusView>
       _progress = 0;
     });
 
-    await _fitBounds(points);
+    unawaited(_fitBounds(points));
     _runMoveAnimation(
       durationSeconds: (RouteGeometry.pathLengthMeters(dense) / 55)
-          .clamp(18.0, 55.0),
+          .clamp(16.0, 45.0),
       onDone: () {
-        if (!mounted) return;
+        if (!mounted || !_demoMotionEnabled) return;
         setState(() {
           _phase = _TrackPhase.done;
           _progress = 1;

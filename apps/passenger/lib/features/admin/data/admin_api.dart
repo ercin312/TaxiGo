@@ -115,6 +115,7 @@ class AdminApi {
     } catch (_) {
       // Locator may be unavailable in pure unit tests.
     }
+    // HomeBloc listens to FeatureModulesService for demo_login refresh.
   }
 
   Future<void> resetDemoData() async {

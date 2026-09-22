@@ -5,12 +5,14 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/di/locator.dart';
 import '../../../domain/models/user_model.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/repositories/user_repository.dart';
 import '../../../firebase/firebase_service.dart';
 import '../../../services/app_review_seed.dart';
 import '../../../services/device_registration_service.dart';
+import '../../../services/feature_modules_service.dart';
 import '../../../services/local_demo_store.dart';
 import '../../../services/social_auth_service.dart';
 
@@ -265,6 +267,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             LocalDemoStore.instance.applyDemoAccount(demo);
           }
         }
+      }
+      // Super Admin / local_admin sessions: keep demo fleet & approach motion on.
+      if (token.startsWith('local_admin') || localUser.role == 'admin') {
+        try {
+          await locator<FeatureModulesService>()
+              .setOverride('demo_login', true);
+        } catch (_) {}
       }
       emit(state.copyWith(
         status: AuthStatus.authenticated,
@@ -586,6 +595,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         'local_admin_${DateTime.now().millisecondsSinceEpoch}';
     await _authRepository.saveToken(token);
     await _authRepository.saveLocalUser(admin);
+    try {
+      await locator<FeatureModulesService>().setOverride('demo_login', true);
+    } catch (_) {}
     return AuthSession(token: token, user: admin, authMode: 'admin_local');
   }
 

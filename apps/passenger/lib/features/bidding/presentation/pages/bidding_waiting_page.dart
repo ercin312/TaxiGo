@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -585,7 +587,7 @@ class _FareStepper extends StatelessWidget {
   }
 }
 
-class _DriverBidCard extends StatelessWidget {
+class _DriverBidCard extends StatefulWidget {
   const _DriverBidCard({
     required this.bid,
     required this.onAccept,
@@ -597,8 +599,47 @@ class _DriverBidCard extends StatelessWidget {
   final VoidCallback onReject;
 
   @override
+  State<_DriverBidCard> createState() => _DriverBidCardState();
+}
+
+class _DriverBidCardState extends State<_DriverBidCard> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {});
+      final left = widget.bid.secondsRemaining ?? 0;
+      if (left <= 0) _tick?.cancel();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _DriverBidCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.bid.expiresAt != widget.bid.expiresAt) {
+      _tick?.cancel();
+      _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        setState(() {});
+        final left = widget.bid.secondsRemaining ?? 0;
+        if (left <= 0) _tick?.cancel();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final bid = widget.bid;
     final seconds = bid.secondsRemaining ?? 0;
 
     return Container(
@@ -657,7 +698,7 @@ class _DriverBidCard extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: onReject,
+                  onPressed: widget.onReject,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.error,
                   ),
@@ -668,7 +709,7 @@ class _DriverBidCard extends StatelessWidget {
               Expanded(
                 child: PrimaryButton(
                   label: l10n.acceptBid,
-                  onPressed: onAccept,
+                  onPressed: widget.onAccept,
                 ),
               ),
             ],

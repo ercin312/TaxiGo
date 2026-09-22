@@ -29,6 +29,9 @@ class LocalDemoStore {
     }
   }
 
+  /// Public mirror for repositories (local bidding / matching gates).
+  bool get isDemoActive => _demoOn;
+
   RideModel? _activePassengerRide;
   RideModel? _activeDriverRide;
   RideModel? _pendingOffer;
@@ -40,6 +43,19 @@ class LocalDemoStore {
   final List<RideModel> _history = [];
   final Map<int, List<RideMessageModel>> _rideMessages = {};
   int _nextMessageId = 1;
+  final Map<int, DateTime> _bidExpiresAt = {};
+
+  /// Stable bid expiry for local polling (do not reset every poll).
+  DateTime bidExpiresAt(int rideId, {Duration ttl = const Duration(minutes: 2)}) {
+    return _bidExpiresAt.putIfAbsent(
+      rideId,
+      () => DateTime.now().add(ttl),
+    );
+  }
+
+  void clearBidExpiry(int rideId) {
+    _bidExpiresAt.remove(rideId);
+  }
 
   /// Active demo persona (city / taxi seed) after chip login.
   DemoAccount? _activeAccount;
@@ -509,10 +525,12 @@ class LocalDemoStore {
     final ride = getRide(rideId) ?? _sampleIncomingRide();
     final updated = ride.copyWith(
       id: ride.id,
-      status: RideStatus.driverAssigned,
+      status: RideStatus.driverArriving,
       driverId: driverId,
       driverAssignedAt: DateTime.now(),
       finalFare: ride.offeredFare ?? ride.estimatedFare,
+      driverName: ride.driverName ?? 'Demo Taksi',
+      vehiclePlate: ride.vehiclePlate ?? 'PG TG 01',
     );
     _activeDriverRide = updated;
     _activePassengerRide = updated;
