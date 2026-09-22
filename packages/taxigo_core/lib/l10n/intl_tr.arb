@@ -321,6 +321,7 @@
   "rolePassenger": "Yolcu",
   "roleDriver": "Sürücü",
   "continueWithGoogle": "Google ile devam et",
+  "continueWithApple": "Apple ile devam et",
   "topUpConfirm": "Cüzdanınıza {amount} {currency} yüklensin mi?",
   "topUpSuccess": "Cüzdan başarıyla yüklendi.",
   "topUpHint": "Tutar seçin. Süper admin yükleme modülünü açtığında ödeme güvenli işlenir.",

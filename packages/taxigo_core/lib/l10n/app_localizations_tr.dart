@@ -930,6 +930,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get continueWithGoogle => 'Google ile devam et';
 
   @override
+  String get continueWithApple => 'Apple ile devam et';
+
+  @override
   String topUpConfirm(String amount, String currency) {
     return 'Cüzdanınıza $amount $currency yüklensin mi?';
   }

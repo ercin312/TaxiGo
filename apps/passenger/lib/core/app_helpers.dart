@@ -2,6 +2,7 @@ import 'package:taxigo_core/taxigo_core.dart';
 
 bool isProfileComplete(UserModel? user) {
   if (user == null) return false;
+  if (user.isAdmin) return true;
   final name = user.name.trim();
   if (name.isEmpty) return false;
   if (name.toLowerCase() == 'user') return false;

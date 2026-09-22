@@ -321,6 +321,7 @@
   "rolePassenger": "Пассажир",
   "roleDriver": "Водитель",
   "continueWithGoogle": "Продолжить с Google",
+  "continueWithApple": "Продолжить с Apple",
   "topUpConfirm": "Пополнить кошелёк на {amount} {currency}?",
   "topUpSuccess": "Кошелёк успешно пополнен.",
   "topUpHint": "Выберите сумму. Оплата доступна, когда Super Admin включит модуль.",

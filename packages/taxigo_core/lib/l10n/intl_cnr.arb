@@ -335,6 +335,7 @@
   "rolePassenger": "Putnik",
   "roleDriver": "Vozač",
   "continueWithGoogle": "Nastavi sa Google",
+  "continueWithApple": "Nastavi sa Apple",
   "topUpConfirm": "Dopuniti novčanik sa {amount} {currency}?",
   "topUpSuccess": "Novčanik je uspješno dopunjen.",
   "topUpHint": "Izaberite iznos. Plaćanje se obrađuje kada Super Admin omogući dopunu.",

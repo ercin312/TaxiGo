@@ -391,6 +391,7 @@
   "rolePassenger": "Passenger",
   "roleDriver": "Driver",
   "continueWithGoogle": "Continue with Google",
+  "continueWithApple": "Continue with Apple",
   "topUpConfirm": "Pay {amount} {currency} to top up your wallet?",
   "topUpSuccess": "Wallet topped up successfully.",
   "topUpHint": "Choose an amount. Payment is processed securely when Super Admin enables top-up.",

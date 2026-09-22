@@ -464,6 +464,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       name: event.name,
     ));
 
+    // Admin panel credentials (same as desktop admin app).
+    if (_isAdminCredential(event.phoneNumber, event.password)) {
+      final admin = await _forceAdminLocalSession(event);
+      emit(state.copyWith(
+        status: AuthStatus.authenticated,
+        user: admin.user,
+        token: admin.token,
+        clearOtpDebug: true,
+      ));
+      return;
+    }
+
     try {
       final payload = await _deviceRegistrationService.registrationPayload(
         phone: event.phoneNumber,
@@ -551,6 +563,30 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       '905550000002',
     };
     return phones.contains(normalized) && password == '123456';
+  }
+
+  bool _isAdminCredential(String username, String password) {
+    final normalized = username.trim().toLowerCase();
+    return normalized == 'erhan' && password == 'erhan123';
+  }
+
+  Future<AuthSession> _forceAdminLocalSession(
+    AuthReviewLoginRequested event,
+  ) async {
+    final admin = UserModel(
+      id: 9000,
+      name: 'Erhan',
+      email: 'erhan@taxigo.app',
+      phone: event.phoneNumber.contains('@') ? null : event.phoneNumber,
+      role: 'admin',
+      locale: AppConstants.defaultLocale,
+      isActive: true,
+    );
+    final token =
+        'local_admin_${DateTime.now().millisecondsSinceEpoch}';
+    await _authRepository.saveToken(token);
+    await _authRepository.saveLocalUser(admin);
+    return AuthSession(token: token, user: admin, authMode: 'admin_local');
   }
 
   Future<AuthSession> _forceReviewLocalSession(

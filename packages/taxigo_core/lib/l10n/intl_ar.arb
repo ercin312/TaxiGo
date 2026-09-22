@@ -321,6 +321,7 @@
   "rolePassenger": "راكب",
   "roleDriver": "سائق",
   "continueWithGoogle": "المتابعة مع Google",
+  "continueWithApple": "المتابعة مع Apple",
   "topUpConfirm": "شحن المحفظة بمبلغ {amount} {currency}؟",
   "topUpSuccess": "تم شحن المحفظة بنجاح.",
   "topUpHint": "اختر المبلغ. تتم المعالجة عند تفعيل المشرف العام للشحن.",

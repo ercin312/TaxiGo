@@ -24,6 +24,9 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
   bool get _showGoogle =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
+  bool get _showApple =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
   @override
   void dispose() {
     _usernameController.dispose();
@@ -51,6 +54,10 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
   }
 
   Future<void> _goAfterAuth(BuildContext context, AuthState state) async {
+    if (state.user?.isAdmin == true) {
+      if (context.mounted) context.go('/admin');
+      return;
+    }
     if (!isProfileComplete(state.user)) {
       context.go('/profile-setup');
       return;
@@ -90,10 +97,11 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
             children: [
               TextField(
                 controller: _usernameController,
-                keyboardType: TextInputType.phone,
+                keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
-                  labelText: l10n.phoneNumber,
+                  labelText: '${l10n.phoneNumber} / Admin',
+                  hintText: 'erhan',
                   prefixIcon: const Icon(Icons.person_outline_rounded),
                 ),
               ),
@@ -146,6 +154,21 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
                   role: _role,
                 ),
               ),
+              if (_showApple) ...[
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: loading
+                      ? null
+                      : () => context.read<AuthBloc>().add(
+                            AuthSocialLoginRequested(
+                              provider: SocialAuthProvider.apple,
+                              role: _role,
+                            ),
+                          ),
+                  icon: const Icon(Icons.apple, size: 22),
+                  label: Text(l10n.continueWithApple),
+                ),
+              ],
               if (_showGoogle) ...[
                 const SizedBox(height: 16),
                 OutlinedButton.icon(

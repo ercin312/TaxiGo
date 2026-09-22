@@ -14,6 +14,7 @@ import '../features/account/presentation/pages/trip_history_page.dart';
 import '../features/account/presentation/pages/wallet_page.dart';
 import '../features/active_ride/application/active_ride_bloc.dart';
 import '../features/active_ride/presentation/pages/active_ride_page.dart';
+import '../features/admin/presentation/pages/admin_shell_page.dart';
 import '../features/app_mode/application/app_mode_cubit.dart';
 import '../features/auth/presentation/pages/otp_verify_page.dart';
 import '../features/auth/presentation/pages/phone_login_page.dart';
@@ -72,6 +73,24 @@ GoRouter createAppRouter(AuthBloc authBloc) {
 
       if (!authed && !isPublic) return '/login';
 
+      if (authed && auth.user?.isAdmin == true) {
+        if (loc == '/admin') return null;
+        if (loc == '/login' ||
+            loc == '/otp' ||
+            loc == '/splash' ||
+            loc == '/home' ||
+            loc == '/driver-home' ||
+            loc == '/profile-setup') {
+          return '/admin';
+        }
+      }
+
+      if (authed &&
+          auth.user?.isAdmin != true &&
+          loc == '/admin') {
+        return '/home';
+      }
+
       if (authed && (loc == '/login' || loc == '/otp')) {
         return null;
       }
@@ -97,6 +116,10 @@ GoRouter createAppRouter(AuthBloc authBloc) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const PhoneLoginPage(),
+      ),
+      GoRoute(
+        path: '/admin',
+        builder: (context, state) => const AdminShellPage(),
       ),
       GoRoute(
         path: '/otp',
@@ -306,6 +329,10 @@ Future<void> markOnboardingComplete() async {
 }
 
 Future<String> resolveHomeRoute() async {
+  final stored = await passengerGetIt<AuthRepository>().getStoredLocalUser();
+  if (stored?.isAdmin == true) {
+    return '/admin';
+  }
   final mode = passengerGetIt<AppModeCubit>().state;
   if (mode == AppMode.driver) {
     return '/driver-home';

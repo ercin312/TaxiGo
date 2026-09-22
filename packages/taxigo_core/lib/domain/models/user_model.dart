@@ -27,6 +27,7 @@ class UserModel extends Equatable {
 
   bool get isDriver => role == 'driver';
   bool get isPassenger => role == 'passenger';
+  bool get isAdmin => role == 'admin' || role == 'super_admin';
 
   UserModel copyWith({
     int? id,

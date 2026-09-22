@@ -929,6 +929,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get continueWithGoogle => 'Continue with Google';
 
   @override
+  String get continueWithApple => 'Continue with Apple';
+
+  @override
   String topUpConfirm(String amount, String currency) {
     return 'Pay $amount $currency to top up your wallet?';
   }

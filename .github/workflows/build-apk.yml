@@ -18,7 +18,7 @@ jobs:
         working-directory: apps/passenger
 
     env:
-      TAXIGO_API_BASE_URL: ${{ vars.TAXIGO_API_BASE_URL || 'http://10.0.2.2:8000/api/v1' }}
+      TAXIGO_API_BASE_URL: ${{ vars.TAXIGO_API_BASE_URL || 'https://alanyaproje.com/taxigo/v1' }}
 
     steps:
       - uses: actions/checkout@v4

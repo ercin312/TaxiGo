@@ -922,6 +922,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get continueWithGoogle => 'المتابعة مع Google';
 
   @override
+  String get continueWithApple => 'المتابعة مع Apple';
+
+  @override
   String topUpConfirm(String amount, String currency) {
     return 'شحن المحفظة بمبلغ $amount $currency؟';
   }

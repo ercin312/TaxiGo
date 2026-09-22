@@ -926,6 +926,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get continueWithGoogle => 'Продолжить с Google';
 
   @override
+  String get continueWithApple => 'Продолжить с Apple';
+
+  @override
   String topUpConfirm(String amount, String currency) {
     return 'Пополнить кошелёк на $amount $currency?';
   }

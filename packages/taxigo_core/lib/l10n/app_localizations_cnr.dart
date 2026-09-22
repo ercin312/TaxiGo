@@ -930,6 +930,9 @@ class AppLocalizationsCnr extends AppLocalizations {
   String get continueWithGoogle => 'Nastavi sa Google';
 
   @override
+  String get continueWithApple => 'Nastavi sa Apple';
+
+  @override
   String topUpConfirm(String amount, String currency) {
     return 'Dopuniti novčanik sa $amount $currency?';
   }

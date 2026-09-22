@@ -12,6 +12,10 @@ Also add in Notes (second account + how to sign in):
 ```
 ONE APP — Passenger + Driver modes
 
+SIGN IN OPTIONS (iOS)
+• Phone + password (review accounts below)
+• Continue with Apple (Sign in with Apple) — select Passenger or Driver first
+
 PASSENGER ACCOUNT
 Username: +905550000001
 Password: 123456
