@@ -7,6 +7,27 @@ class SosButton extends StatelessWidget {
 
   final int? rideId;
 
+  Future<Position> _resolvePosition() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      throw Exception('location_denied');
+    }
+    final serviceOn = await Geolocator.isLocationServiceEnabled();
+    if (!serviceOn) {
+      throw Exception('location_off');
+    }
+    return Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 12),
+      ),
+    );
+  }
+
   Future<void> _sendSos(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
@@ -15,15 +36,21 @@ class SosButton extends StatelessWidget {
         title: Text(l10n.sos),
         content: Text(l10n.sosConfirm),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(l10n.no)),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: Text(l10n.yes)),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.no),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.yes),
+          ),
         ],
       ),
     );
     if (confirmed != true || !context.mounted) return;
 
     try {
-      final position = await Geolocator.getCurrentPosition();
+      final position = await _resolvePosition();
       final api = locator<ApiClient>();
       await api.post(
         ApiEndpoints.safetySos,
@@ -39,11 +66,15 @@ class SosButton extends StatelessWidget {
         );
       }
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
-      }
+      if (!context.mounted) return;
+      final raw = e.toString();
+      final message = (raw.contains('location_denied') ||
+              raw.contains('location_off'))
+          ? l10n.locationUnavailableMapSelect
+          : (e is ApiException ? e.message : raw);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     }
   }
 

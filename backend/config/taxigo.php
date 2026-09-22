@@ -51,4 +51,8 @@ return [
         'email' => env('TAXIGO_COMPANY_EMAIL', env('TAXIGO_SUPPORT_EMAIL', 'destek@taxigo.app')),
         'phone' => env('TAXIGO_COMPANY_PHONE'),
     ],
+    'sos' => [
+        'notify_admins' => (bool) env('TAXIGO_SOS_NOTIFY_ADMINS', true),
+        'webhook_url' => env('TAXIGO_SOS_WEBHOOK_URL'),
+    ],
 ];

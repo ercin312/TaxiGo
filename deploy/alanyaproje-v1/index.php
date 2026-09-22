@@ -195,13 +195,22 @@ try {
         tg_json(tg_user_payload($stmt->fetch()));
     }
 
-    // Feature modules (public)
+    // Feature modules (public) — map shape matches Laravel ModuleConfigController
     if ($method === 'GET' && $path === '/modules') {
         tg_json(array(
             'modules' => array(
-                array('key' => 'otp_login', 'enabled' => true),
-                array('key' => 'demo_login', 'enabled' => false),
-                array('key' => 'card_payments', 'enabled' => false),
+                'otp_login' => true,
+                'demo_login' => false,
+                'card_payments' => false,
+                'sos_alerts' => true,
+                'share_trip' => true,
+                'ride_comms' => true,
+                'ride_receipts' => true,
+                'bidding' => true,
+                'wallet_topup' => false,
+                'withdrawals' => false,
+                'fcm_dispatch' => false,
+                'rtdb_sync' => false,
             ),
         ));
     }
@@ -357,6 +366,44 @@ try {
             'description' => isset($body['description']) ? $body['description'] : '',
             'status' => 'open',
             'created_at' => tg_now(),
+        ), 201);
+    }
+
+    // SOS emergency alert — stores locally; ops can poll via DB / logs
+    if ($method === 'POST' && $path === '/safety/sos') {
+        $user = tg_require_user();
+        $lat = isset($body['latitude']) ? (float) $body['latitude'] : null;
+        $lng = isset($body['longitude']) ? (float) $body['longitude'] : null;
+        if ($lat === null || $lng === null || $lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+            tg_json(array('message' => 'Valid latitude and longitude are required.'), 422);
+        }
+        $rideId = isset($body['ride_id']) ? (int) $body['ride_id'] : null;
+        $message = isset($body['message']) ? trim((string) $body['message']) : 'Emergency SOS triggered by user.';
+        $reference = 'SOS-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));
+        $pdo = tg_db();
+        $pdo->prepare(
+            'INSERT INTO sos_alerts (user_id, ride_id, reference, latitude, longitude, message, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)'
+        )->execute(array(
+            (int) $user['id'],
+            $rideId > 0 ? $rideId : null,
+            $reference,
+            $lat,
+            $lng,
+            $message !== '' ? $message : 'Emergency SOS triggered by user.',
+            tg_now(),
+        ));
+        $id = (int) $pdo->lastInsertId();
+        @file_put_contents(
+            __DIR__ . '/data/sos.log',
+            tg_now() . " {$reference} user={$user['id']} lat={$lat} lng={$lng} ride=" . ($rideId ?: '-') . "\n",
+            FILE_APPEND
+        );
+        tg_json(array(
+            'message' => 'SOS alert sent successfully.',
+            'complaint_id' => $id,
+            'reference' => $reference,
+            'notified' => array('admins' => 0, 'driver' => false, 'webhook' => false),
         ), 201);
     }
     if ($method === 'GET' && $path === '/wallet') {

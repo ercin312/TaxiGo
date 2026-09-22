@@ -111,6 +111,19 @@ function tg_migrate(PDO $pdo)
             created_at TEXT
         )'
     );
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS sos_alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            ride_id INTEGER,
+            reference TEXT NOT NULL,
+            latitude REAL NOT NULL,
+            longitude REAL NOT NULL,
+            message TEXT,
+            created_at TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )'
+    );
 }
 
 function tg_now()
