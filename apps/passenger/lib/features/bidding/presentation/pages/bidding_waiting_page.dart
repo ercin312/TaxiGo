@@ -18,34 +18,28 @@ class BiddingWaitingPage extends StatefulWidget {
 class _BiddingWaitingPageState extends State<BiddingWaitingPage>
     with SingleTickerProviderStateMixin {
   late final AnimationController _radar;
-  DateTime? _startedAt;
+  final _sheetScroll = ScrollController();
   GoogleMapController? _mapController;
-  bool _markersReady = false;
+  int _lastBidCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _startedAt = DateTime.now();
     _radar = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat();
     MapMarkerIcons.ensureLoaded().then((_) {
-      if (!mounted) return;
-      setState(() => _markersReady = true);
+      if (mounted) setState(() {});
     });
   }
 
   @override
   void dispose() {
     _radar.dispose();
+    _sheetScroll.dispose();
     _mapController?.dispose();
     super.dispose();
-  }
-
-  int get _elapsedMinutes {
-    final start = _startedAt ?? DateTime.now();
-    return DateTime.now().difference(start).inMinutes.clamp(0, 99);
   }
 
   Future<void> _recenterMap(LatLng target) async {
@@ -62,9 +56,6 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final screenH = MediaQuery.sizeOf(context).height;
-    // Keep a clear map band above the sheet so pin + radar stay visible.
-    final sheetFactor = 0.58;
-    final mapPadBottom = screenH * sheetFactor;
 
     return BlocConsumer<BiddingBloc, BiddingState>(
       listener: (context, state) {
@@ -83,11 +74,28 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
             LatLng(state.ride!.pickupLatitude, state.ride!.pickupLongitude),
           );
         }
+
+        // New bids arrived — keep them pinned at the top of the sheet.
+        if (state.bids.length > _lastBidCount) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!_sheetScroll.hasClients) return;
+            _sheetScroll.animateTo(
+              0,
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOutCubic,
+            );
+          });
+        }
+        _lastBidCount = state.bids.length;
       },
       builder: (context, state) {
         final ride = state.ride;
         final offer = state.currentOffer ?? ride?.offeredFare ?? 0;
         final minimum = state.minimumFare ?? ride?.minimumFare ?? offer;
+        final hasBids = state.bids.isNotEmpty;
+        // Taller sheet when offers exist so cards stay on-screen.
+        final sheetFactor = hasBids ? 0.72 : 0.52;
+        final mapPadBottom = screenH * sheetFactor;
         final pickup = ride == null
             ? const LatLng(
                 AppConstants.defaultLatitude,
@@ -138,7 +146,6 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
                         },
                       ),
                     ),
-                    // Radar only in the visible map band (above the sheet).
                     Positioned(
                       top: 0,
                       left: 0,
@@ -158,7 +165,6 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
                         ),
                       ),
                     ),
-                    // Visible pulse pin in the map band (search affordance).
                     Positioned(
                       top: 0,
                       left: 0,
@@ -197,6 +203,7 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
                       child: AnimatedBottomSheet(
                         maxHeightFactor: sheetFactor,
                         child: SingleChildScrollView(
+                          controller: _sheetScroll,
                           padding: EdgeInsets.fromLTRB(
                             16,
                             8,
@@ -210,7 +217,7 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
                                 children: [
                                   AnimatedVehicleImage(
                                     vehicleType: ride.vehicleType,
-                                    size: 78,
+                                    size: 56,
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -219,10 +226,12 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          l10n.discoverYourDriver,
+                                          hasBids
+                                              ? l10n.availableDrivers
+                                              : l10n.discoverYourDriver,
                                           style: Theme.of(context)
                                               .textTheme
-                                              .titleLarge
+                                              .titleMedium
                                               ?.copyWith(
                                                 fontWeight: FontWeight.w800,
                                               ),
@@ -232,20 +241,9 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
                                           borderRadius:
                                               BorderRadius.circular(8),
                                           child: LinearProgressIndicator(
-                                            minHeight: 8,
+                                            minHeight: 6,
                                             backgroundColor: AppColors.mist,
                                             color: AppColors.accent,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Align(
-                                          alignment: Alignment.centerRight,
-                                          child: Text(
-                                            l10n.minutesElapsed(
-                                                _elapsedMinutes),
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall,
                                           ),
                                         ),
                                       ],
@@ -254,52 +252,57 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
                                 ],
                               ),
                               const SizedBox(height: 12),
-                              Text(
-                                l10n.reservationDetails,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleSmall
-                                    ?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(height: 8),
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color:
-                                      AppColors.mist.withValues(alpha: 0.45),
-                                  borderRadius: BorderRadius.circular(14),
+                              // Bids first — no scroll needed to see offers.
+                              if (!hasBids)
+                                Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        AppColors.mist.withValues(alpha: 0.4),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Image.asset(
+                                        AppImages.rideSearching,
+                                        height: 48,
+                                        errorBuilder: (_, _, _) =>
+                                            const Icon(
+                                          Icons.radar,
+                                          size: 32,
+                                          color: AppColors.accentDeep,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          l10n.noBidsYet,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else
+                                ...state.bids.map(
+                                  (bid) => _DriverBidCard(
+                                    bid: bid,
+                                    onAccept: () =>
+                                        context.read<BiddingBloc>().add(
+                                              BiddingAcceptBid(bid.id),
+                                            ),
+                                    onReject: () =>
+                                        context.read<BiddingBloc>().add(
+                                              BiddingRejectBid(bid.id),
+                                            ),
+                                  ),
                                 ),
-                                child: Column(
-                                  children: [
-                                    _Line(
-                                      icon: Icons.circle,
-                                      color: AppColors.success,
-                                      text: ride.pickupAddress,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    _Line(
-                                      icon: Icons.location_on,
-                                      color: AppColors.error,
-                                      text: ride.dropoffAddress,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(l10n.tripDetails),
-                              const SizedBox(height: 8),
-                              _InfoTile(
-                                icon: Icons.local_taxi_rounded,
-                                label: ride.vehicleType,
-                              ),
-                              const SizedBox(height: 8),
-                              _InfoTile(
-                                icon: Icons.account_balance_wallet_outlined,
-                                label: ride.paymentMethod == PaymentMethod.cash
-                                    ? l10n.payInVehicle
-                                    : ride.paymentMethod.value,
-                              ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 14),
                               Text(
                                 l10n.updateOffer,
                                 style: Theme.of(context)
@@ -307,7 +310,7 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
                                     .titleSmall
                                     ?.copyWith(fontWeight: FontWeight.w700),
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 4),
                               Text(
                                 '${l10n.recommendedFareMinimum}: ${minimum.toStringAsFixed(2)} ${AppConstants.currency}',
                                 style: Theme.of(context).textTheme.bodySmall,
@@ -337,59 +340,64 @@ class _BiddingWaitingPageState extends State<BiddingWaitingPage>
                                         ),
                                 child: Text(l10n.updateOffer),
                               ),
-                              const SizedBox(height: 16),
-                              Text(
-                                l10n.availableDrivers,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleSmall
-                                    ?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(height: 8),
-                              if (state.bids.isEmpty)
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        AppColors.mist.withValues(alpha: 0.4),
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Image.asset(
-                                        AppImages.rideSearching,
-                                        height: 88,
-                                        errorBuilder: (_, __, ___) =>
-                                            const Icon(
-                                          Icons.radar,
-                                          size: 40,
-                                          color: AppColors.accentDeep,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        l10n.noBidsYet,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              else
-                                ...state.bids.map(
-                                  (bid) => _DriverBidCard(
-                                    bid: bid,
-                                    onAccept: () =>
-                                        context.read<BiddingBloc>().add(
-                                              BiddingAcceptBid(bid.id),
-                                            ),
-                                    onReject: () =>
-                                        context.read<BiddingBloc>().add(
-                                              BiddingRejectBid(bid.id),
-                                            ),
-                                  ),
+                              const SizedBox(height: 12),
+                              Theme(
+                                data: Theme.of(context).copyWith(
+                                  dividerColor: Colors.transparent,
                                 ),
-                              const SizedBox(height: 16),
-                              Text(l10n.manageTrip),
+                                child: ExpansionTile(
+                                  initiallyExpanded: false,
+                                  tilePadding: EdgeInsets.zero,
+                                  childrenPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    l10n.reservationDetails,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                  children: [
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.mist
+                                            .withValues(alpha: 0.45),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          _Line(
+                                            icon: Icons.circle,
+                                            color: AppColors.success,
+                                            text: ride.pickupAddress,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          _Line(
+                                            icon: Icons.location_on,
+                                            color: AppColors.error,
+                                            text: ride.dropoffAddress,
+                                          ),
+                                          const SizedBox(height: 10),
+                                          _InfoTile(
+                                            icon: Icons.local_taxi_rounded,
+                                            label: ride.vehicleType,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          _InfoTile(
+                                            icon: Icons
+                                                .account_balance_wallet_outlined,
+                                            label: ride.paymentMethod ==
+                                                    PaymentMethod.cash
+                                                ? l10n.payInVehicle
+                                                : ride.paymentMethod.value,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                               const SizedBox(height: 8),
                               OutlinedButton.icon(
                                 onPressed: state.status == BiddingStatus.loading

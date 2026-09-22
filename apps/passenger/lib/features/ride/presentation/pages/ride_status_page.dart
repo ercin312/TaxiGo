@@ -137,8 +137,9 @@ class _RideStatusViewState extends State<_RideStatusView>
   }
 
   Future<void> _onRideUpdated(RideModel ride) async {
-    // Production: status-driven UI + live driver GPS — never auto-complete.
-    if (!AppConstants.allowDemoMode) {
+    final demo = _demoMotionEnabled;
+    // Production without demo: status-driven UI + live driver GPS — no fake motion.
+    if (!demo) {
       final nextPhase = _isTrip(ride.status)
           ? _TrackPhase.trip
           : _isApproach(ride.status)
@@ -155,12 +156,21 @@ class _RideStatusViewState extends State<_RideStatusView>
       return;
     }
 
+    // Demo / Super Admin: animate taxi & transfer toward pickup, then trip.
     if (_isApproach(ride.status) && !_approachStarted) {
       await _startApproach(ride);
       return;
     }
     if (_isTrip(ride.status) && !_tripStarted) {
       await _startTrip(ride);
+    }
+  }
+
+  bool get _demoMotionEnabled {
+    try {
+      return passengerGetIt<FeatureModulesService>().demoActive;
+    } catch (_) {
+      return AppConstants.allowDemoMode;
     }
   }
 
@@ -377,7 +387,7 @@ class _RideStatusViewState extends State<_RideStatusView>
           _onRideUpdated(state.ride!);
         }
         final loc = state.driverLocation;
-        if (loc != null && !AppConstants.allowDemoMode) {
+        if (loc != null && !_demoMotionEnabled) {
           _applyDriverLocation(loc);
         }
       },

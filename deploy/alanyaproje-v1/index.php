@@ -225,22 +225,8 @@ try {
         tg_json(tg_user_payload($stmt->fetch()));
     }
 
-    require __DIR__ . '/rides_api.php';
-
-    if ($method === 'POST' && $path === '/complaints') {
-        $user = tg_require_user();
-        tg_json(array(
-            'id' => 502,
-            'user_id' => (int) $user['id'],
-            'subject' => isset($body['subject']) ? $body['subject'] : 'Support',
-            'description' => isset($body['description']) ? $body['description'] : '',
-            'status' => 'open',
-            'created_at' => tg_now(),
-        ), 201);
-    }
-
-    // SOS emergency alert — stores locally; ops can poll via DB / logs
-    if ($method === 'POST' && $path === '/safety/sos') {
+    // SOS emergency alert — before rides_api so path never falls through as 404
+    if ($method === 'POST' && ($path === '/safety/sos' || $path === '/safety/sos/')) {
         $user = tg_require_user();
         $lat = isset($body['latitude']) ? (float) $body['latitude'] : null;
         $lng = isset($body['longitude']) ? (float) $body['longitude'] : null;
@@ -249,6 +235,9 @@ try {
         }
         $rideId = isset($body['ride_id']) ? (int) $body['ride_id'] : null;
         $message = isset($body['message']) ? trim((string) $body['message']) : 'Emergency SOS triggered by user.';
+        if ($message === '') {
+            $message = 'Emergency SOS triggered by user.';
+        }
         $reference = 'SOS-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));
         $pdo = tg_db();
         $pdo->prepare(
@@ -260,20 +249,79 @@ try {
             $reference,
             $lat,
             $lng,
-            $message !== '' ? $message : 'Emergency SOS triggered by user.',
+            $message,
             tg_now(),
         ));
         $id = (int) $pdo->lastInsertId();
+        $notified = tg_notify_sos(
+            $user,
+            $id,
+            $reference,
+            $lat,
+            $lng,
+            $rideId > 0 ? $rideId : null,
+            $message
+        );
         @file_put_contents(
             __DIR__ . '/data/sos.log',
-            tg_now() . " {$reference} user={$user['id']} lat={$lat} lng={$lng} ride=" . ($rideId ?: '-') . "\n",
+            tg_now() . " {$reference} user={$user['id']} lat={$lat} lng={$lng} ride="
+                . ($rideId ?: '-')
+                . ' notified=' . json_encode($notified) . "\n",
             FILE_APPEND
         );
         tg_json(array(
             'message' => 'SOS alert sent successfully.',
             'complaint_id' => $id,
             'reference' => $reference,
-            'notified' => array('admins' => 0, 'driver' => false, 'webhook' => false),
+            'notified' => $notified,
+        ), 201);
+    }
+
+    // Ops: SOS notify channels (FCM / email / webhook)
+    if ($method === 'GET' && $path === '/ops/sos-notify') {
+        tg_require_ops_key();
+        $s = tg_sos_notify_settings();
+        // Mask server key in GET
+        if (!empty($s['sos_fcm_server_key'])) {
+            $k = $s['sos_fcm_server_key'];
+            $s['sos_fcm_server_key'] = strlen($k) <= 8
+                ? '********'
+                : substr($k, 0, 4) . str_repeat('*', max(4, strlen($k) - 8)) . substr($k, -4);
+            $s['sos_fcm_server_key_set'] = true;
+        } else {
+            $s['sos_fcm_server_key_set'] = false;
+        }
+        tg_json(array('settings' => $s));
+    }
+    if (($method === 'PUT' || $method === 'POST') && $path === '/ops/sos-notify') {
+        tg_require_ops_key();
+        $saved = tg_save_sos_notify_settings($body);
+        if ($saved === null) {
+            tg_json(array('message' => 'Failed to save SOS notify settings.'), 500);
+        }
+        tg_json(array('message' => 'SOS notify settings saved.', 'settings' => $saved));
+    }
+    if ($method === 'GET' && $path === '/ops/sos-alerts') {
+        tg_require_ops_key();
+        $pdo = tg_db();
+        $rows = $pdo->query(
+            'SELECT id, user_id, ride_id, reference, latitude, longitude, message, created_at
+             FROM sos_alerts ORDER BY id DESC LIMIT 50'
+        )->fetchAll();
+        tg_json(array('data' => $rows));
+    }
+
+    require __DIR__ . '/rides_api.php';
+
+    if ($method === 'POST' && $path === '/complaints') {
+        $user = tg_require_user();
+        tg_json(array(
+            'id' => 502,
+            'user_id' => (int) $user['id'],
+            'subject' => isset($body['subject']) ? $body['subject'] : 'Support',
+            'description' => isset($body['description']) ? $body['description'] : '',
+            'status' => 'open',
+            'created_at' => tg_now(),
         ), 201);
     }
     if ($method === 'GET' && $path === '/wallet') {

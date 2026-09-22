@@ -115,8 +115,15 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         _feed = nearbyDriversFeed ??
             NearbyDriversCoordinator(
               mapsService: mapsService,
-              // Never show simulated taxis — only live RTDB drivers.
-              allowDemoFallback: false,
+              // Simulated Montenegro fleet when Super Admin enables Demo.
+              allowDemoFallback: true,
+              demoGate: () {
+                try {
+                  return locator<FeatureModulesService>().demoActive;
+                } catch (_) {
+                  return AppConstants.allowDemoMode;
+                }
+              },
             ),
         super(const HomeState()) {
     on<HomeStarted>(_onStarted);

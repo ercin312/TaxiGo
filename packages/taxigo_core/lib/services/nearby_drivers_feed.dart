@@ -36,12 +36,18 @@ class NearbyDriversCoordinator implements NearbyDriversFeed {
     required MapsService mapsService,
     FirebaseDatabase? database,
     this.allowDemoFallback = true,
+    bool Function()? demoGate,
   })  : _database = database,
-        _demo = NearbyFleetSimulator(mapsService);
+        _demo = NearbyFleetSimulator(mapsService),
+        _demoGate = demoGate;
 
   final FirebaseDatabase? _database;
   final NearbyFleetSimulator _demo;
   final bool allowDemoFallback;
+  final bool Function()? _demoGate;
+
+  bool get _demoAllowed =>
+      allowDemoFallback && (_demoGate?.call() ?? true);
 
   final _out = StreamController<List<NearbyDriverPresence>>.broadcast();
   final _trailBuffers = <String, List<LatLng>>{};
@@ -80,19 +86,19 @@ class NearbyDriversCoordinator implements NearbyDriversFeed {
           if (live.isNotEmpty) {
             unawaited(_pauseDemo());
             _emit(live);
-          } else if (allowDemoFallback) {
+          } else if (_demoAllowed) {
             unawaited(_ensureDemo(origin));
           } else {
             _emit(const []);
           }
         },
         onError: (_) {
-          if (allowDemoFallback) {
+          if (_demoAllowed) {
             unawaited(_ensureDemo(_center ?? center));
           }
         },
       );
-    } else if (allowDemoFallback) {
+    } else if (_demoAllowed) {
       await _ensureDemo(center);
     }
   }
@@ -115,7 +121,7 @@ class NearbyDriversCoordinator implements NearbyDriversFeed {
         return;
       }
     }
-    if (allowDemoFallback && !_demoRunning) {
+    if (_demoAllowed && !_demoRunning) {
       await _ensureDemo(center);
     }
   }
@@ -159,7 +165,7 @@ class NearbyDriversCoordinator implements NearbyDriversFeed {
             .toList(),
       );
     });
-    await _demo.start(center: center, count: 4);
+    await _demo.start(center: center, count: 5);
     // Race: live drivers may have appeared while routes were loading.
     if (!_demoRunning || _lastLive.isNotEmpty) {
       await _pauseDemo();

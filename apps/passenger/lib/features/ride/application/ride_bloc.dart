@@ -306,7 +306,7 @@ class RideBloc extends Bloc<RideEvent, RideState> {
     RideApproachCompleted event,
     Emitter<RideState> emit,
   ) async {
-    if (!AppConstants.allowDemoMode) return;
+    if (!_demoMotionEnabled) return;
     final rideId = state.activeRideId;
     if (rideId == null) return;
     try {
@@ -315,7 +315,16 @@ class RideBloc extends Bloc<RideEvent, RideState> {
     } catch (_) {}
     final result = await _rideRepository.getRide(rideId);
     result.fold(
-      (_) {},
+      (_) {
+        emit(state.copyWith(
+          status: RideBlocStatus.active,
+          ride: state.ride?.copyWith(
+            status: RideStatus.inProgress,
+            driverArrivedAt: DateTime.now(),
+            startedAt: DateTime.now(),
+          ),
+        ));
+      },
       (ride) => emit(state.copyWith(
         status: RideBlocStatus.active,
         ride: ride.copyWith(
@@ -331,7 +340,7 @@ class RideBloc extends Bloc<RideEvent, RideState> {
     RideTripAnimationCompleted event,
     Emitter<RideState> emit,
   ) async {
-    if (!AppConstants.allowDemoMode) return;
+    if (!_demoMotionEnabled) return;
     final rideId = state.activeRideId;
     if (rideId == null) return;
 
@@ -349,6 +358,14 @@ class RideBloc extends Bloc<RideEvent, RideState> {
             state.ride?.estimatedFare,
       ),
     ));
+  }
+
+  bool get _demoMotionEnabled {
+    try {
+      return locator<FeatureModulesService>().demoActive;
+    } catch (_) {
+      return AppConstants.allowDemoMode;
+    }
   }
 
   @override

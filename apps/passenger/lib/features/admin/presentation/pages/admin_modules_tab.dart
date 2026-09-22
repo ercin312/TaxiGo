@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/admin_api.dart';
 import '../../theme/admin_colors.dart';
 import '../widgets/admin_section_header.dart';
+import '../widgets/admin_sos_notify_panel.dart';
 
 class AdminModulesTab extends StatefulWidget {
   const AdminModulesTab({super.key, required this.api});
@@ -38,7 +39,7 @@ class _AdminModulesTabState extends State<AdminModulesTab> {
 
   static const _labels = <String, String>{
     'otp_login': 'OTP ile giriş',
-    'demo_login': 'Demo giriş',
+    'demo_login': 'Demo filo & taksi simülasyonu',
     'directions_fare': 'Rota / ücret hesabı',
     'places_autocomplete': 'Adres önerileri',
     'ride_settlement': 'Yolculuk tahsilatı',
@@ -56,7 +57,7 @@ class _AdminModulesTabState extends State<AdminModulesTab> {
 
   static const _icons = <String, IconData>{
     'otp_login': Icons.sms_rounded,
-    'demo_login': Icons.science_rounded,
+    'demo_login': Icons.local_taxi_rounded,
     'directions_fare': Icons.alt_route_rounded,
     'places_autocomplete': Icons.place_rounded,
     'ride_settlement': Icons.receipt_long_rounded,
@@ -92,12 +93,17 @@ class _AdminModulesTabState extends State<AdminModulesTab> {
     setState(() => _modules[key] = value);
     await widget.api.setModule(key, value);
     if (!mounted) return;
+    final demoNote = key == 'demo_login'
+        ? (value
+            ? ' — haritada Montenegro demo filoları aktif'
+            : ' — demo filo kapandı')
+        : '';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${_labels[key] ?? key} ${value ? 'açıldı' : 'kapatıldı'}',
+          '${_labels[key] ?? key} ${value ? 'açıldı' : 'kapatıldı'}$demoNote',
         ),
-        duration: const Duration(milliseconds: 1200),
+        duration: const Duration(milliseconds: 1800),
       ),
     );
   }
@@ -155,6 +161,11 @@ class _AdminModulesTabState extends State<AdminModulesTab> {
               : ListView(
                   padding: const EdgeInsets.fromLTRB(18, 0, 18, 28),
                   children: [
+                    AdminPanel(
+                      padding: const EdgeInsets.all(16),
+                      child: AdminSosNotifyPanel(api: widget.api),
+                    ),
+                    const SizedBox(height: 14),
                     AdminPanel(
                       padding: const EdgeInsets.all(16),
                       child: Row(

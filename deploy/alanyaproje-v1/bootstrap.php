@@ -14,7 +14,7 @@ function tg_json($data, $status = 200)
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     header('Access-Control-Allow-Origin: ' . tg_config()['cors_origin']);
-    header('Access-Control-Allow-Headers: Authorization, Content-Type, Accept');
+    header('Access-Control-Allow-Headers: Authorization, Content-Type, Accept, X-TaxiGo-Ops-Key');
     header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
     exit;
@@ -407,4 +407,329 @@ function tg_find_or_create_user(array $data, $role = 'passenger')
     $stmt = $pdo->prepare('SELECT * FROM users WHERE id = ?');
     $stmt->execute(array($id));
     return $stmt->fetch();
+}
+
+/**
+ * Runtime SOS notify overrides (data/sos_notify.json) merged over config.
+ */
+function tg_sos_notify_settings()
+{
+    $cfg = tg_config();
+    $settings = array(
+        'sos_notify_admins' => !isset($cfg['sos_notify_admins']) || (bool) $cfg['sos_notify_admins'],
+        'sos_fcm_server_key' => isset($cfg['sos_fcm_server_key']) ? (string) $cfg['sos_fcm_server_key'] : '',
+        'sos_fcm_tokens' => isset($cfg['sos_fcm_tokens']) && is_array($cfg['sos_fcm_tokens'])
+            ? array_values($cfg['sos_fcm_tokens'])
+            : array(),
+        'sos_admin_emails' => isset($cfg['sos_admin_emails']) && is_array($cfg['sos_admin_emails'])
+            ? array_values($cfg['sos_admin_emails'])
+            : array(),
+        'sos_admin_email' => isset($cfg['sos_admin_email']) ? (string) $cfg['sos_admin_email'] : '',
+        'sos_mail_from' => isset($cfg['sos_mail_from']) ? (string) $cfg['sos_mail_from'] : 'noreply@alanyaproje.com',
+        'sos_webhook_url' => isset($cfg['sos_webhook_url']) ? (string) $cfg['sos_webhook_url'] : '',
+    );
+    if ($settings['sos_admin_email'] !== '' && empty($settings['sos_admin_emails'])) {
+        $settings['sos_admin_emails'] = array($settings['sos_admin_email']);
+    }
+    $path = __DIR__ . '/data/sos_notify.json';
+    if (is_file($path)) {
+        $raw = @file_get_contents($path);
+        $json = json_decode($raw !== false ? $raw : '', true);
+        if (is_array($json)) {
+            foreach ($settings as $k => $v) {
+                if (!array_key_exists($k, $json)) {
+                    continue;
+                }
+                if (is_array($v) && is_array($json[$k])) {
+                    $settings[$k] = array_values($json[$k]);
+                } elseif (!is_array($v)) {
+                    $settings[$k] = $json[$k];
+                }
+            }
+        }
+    }
+    if (!empty($cfg['fcm_server_key']) && $settings['sos_fcm_server_key'] === '') {
+        $settings['sos_fcm_server_key'] = (string) $cfg['fcm_server_key'];
+    }
+    return $settings;
+}
+
+function tg_save_sos_notify_settings(array $incoming)
+{
+    $current = tg_sos_notify_settings();
+    $allowed = array(
+        'sos_notify_admins',
+        'sos_fcm_server_key',
+        'sos_fcm_tokens',
+        'sos_admin_emails',
+        'sos_admin_email',
+        'sos_mail_from',
+        'sos_webhook_url',
+    );
+    foreach ($allowed as $key) {
+        if (!array_key_exists($key, $incoming)) {
+            continue;
+        }
+        if ($key === 'sos_notify_admins') {
+            $current[$key] = (bool) $incoming[$key];
+        } elseif ($key === 'sos_fcm_tokens' || $key === 'sos_admin_emails') {
+            $list = is_array($incoming[$key]) ? $incoming[$key] : array();
+            $current[$key] = array_values(array_filter(array_map(function ($v) {
+                return trim((string) $v);
+            }, $list)));
+        } else {
+            $current[$key] = trim((string) $incoming[$key]);
+        }
+    }
+    if ($current['sos_admin_email'] !== '' && empty($current['sos_admin_emails'])) {
+        $current['sos_admin_emails'] = array($current['sos_admin_email']);
+    }
+    $dir = __DIR__ . '/data';
+    if (!is_dir($dir)) {
+        mkdir($dir, 0755, true);
+    }
+    $ok = @file_put_contents(
+        $dir . '/sos_notify.json',
+        json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+    );
+    return $ok !== false ? $current : null;
+}
+
+function tg_require_ops_key()
+{
+    $cfg = tg_config();
+    $expected = isset($cfg['ops_api_key']) ? trim((string) $cfg['ops_api_key']) : '';
+    if ($expected === '') {
+        $expected = 'taxigo-ops-sos';
+    }
+    $got = '';
+    if (!empty($_SERVER['HTTP_X_TAXIGO_OPS_KEY'])) {
+        $got = trim((string) $_SERVER['HTTP_X_TAXIGO_OPS_KEY']);
+    } elseif (!empty($_SERVER['HTTP_AUTHORIZATION']) && stripos($_SERVER['HTTP_AUTHORIZATION'], 'Ops ') === 0) {
+        $got = trim(substr($_SERVER['HTTP_AUTHORIZATION'], 4));
+    }
+    if ($got === '' || !hash_equals($expected, $got)) {
+        tg_json(array('message' => 'Unauthorized ops key.'), 401);
+    }
+}
+
+/**
+ * HTTP POST helper (JSON). Returns array with ok/status/body.
+ */
+function tg_http_post($url, array $payload, array $headers = array(), $timeout = 12)
+{
+    $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
+    $ch = curl_init($url);
+    $hdrs = array('Content-Type: application/json', 'Accept: application/json');
+    foreach ($headers as $h) {
+        $hdrs[] = $h;
+    }
+    curl_setopt_array($ch, array(
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => $hdrs,
+        CURLOPT_POSTFIELDS => $body,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => $timeout,
+        CURLOPT_CONNECTTIMEOUT => 8,
+    ));
+    $raw = curl_exec($ch);
+    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
+    curl_close($ch);
+    return array(
+        'ok' => $err === '' && $status >= 200 && $status < 300,
+        'status' => $status,
+        'body' => $raw,
+        'error' => $err,
+    );
+}
+
+/**
+ * Send FCM via Legacy HTTP API (server key) to one device token.
+ */
+function tg_fcm_send_legacy($serverKey, $token, $title, $body, array $data = array())
+{
+    if ($serverKey === '' || $token === '') {
+        return false;
+    }
+    $stringData = array();
+    foreach ($data as $k => $v) {
+        $stringData[(string) $k] = (string) $v;
+    }
+    $res = tg_http_post(
+        'https://fcm.googleapis.com/fcm/send',
+        array(
+            'to' => $token,
+            'priority' => 'high',
+            'notification' => array(
+                'title' => $title,
+                'body' => $body,
+                'sound' => 'default',
+                'android_channel_id' => 'taxigo_sos',
+            ),
+            'data' => $stringData,
+        ),
+        array('Authorization: key=' . $serverKey)
+    );
+    return !empty($res['ok']);
+}
+
+/**
+ * Notify ops: admin FCM, email, webhook (+ optional ride driver FCM).
+ *
+ * @return array{admins:int,driver:bool,webhook:bool,email:bool}
+ */
+function tg_notify_sos(array $user, $alertId, $reference, $lat, $lng, $rideId, $message)
+{
+    $cfg = tg_sos_notify_settings();
+    $title = 'SOS Emergency';
+    $body = sprintf(
+        '%s · %s (%.5f, %.5f)',
+        !empty($user['name']) ? $user['name'] : 'User',
+        $reference,
+        $lat,
+        $lng
+    );
+    $payload = array(
+        'type' => 'sos',
+        'reference' => $reference,
+        'complaint_id' => (int) $alertId,
+        'user_id' => (int) $user['id'],
+        'phone' => isset($user['phone']) ? $user['phone'] : null,
+        'name' => isset($user['name']) ? $user['name'] : null,
+        'latitude' => $lat,
+        'longitude' => $lng,
+        'message' => $message,
+        'ride_id' => $rideId ? (int) $rideId : null,
+        'maps' => sprintf('https://maps.google.com/?q=%.6f,%.6f', $lat, $lng),
+        'created_at' => tg_now(),
+    );
+
+    $adminCount = 0;
+    $driverNotified = false;
+    $webhookOk = false;
+    $emailOk = false;
+
+    $notifyAdmins = !empty($cfg['sos_notify_admins']);
+    $serverKey = isset($cfg['sos_fcm_server_key']) ? trim((string) $cfg['sos_fcm_server_key']) : '';
+
+    if ($notifyAdmins && $serverKey !== '') {
+        $pdo = tg_db();
+        $admins = $pdo->query(
+            "SELECT fcm_token FROM users
+             WHERE role IN ('admin','super_admin')
+               AND fcm_token IS NOT NULL AND TRIM(fcm_token) != ''
+               AND is_active = 1"
+        )->fetchAll();
+        foreach ($admins as $admin) {
+            if (tg_fcm_send_legacy($serverKey, $admin['fcm_token'], $title, $body, array(
+                'type' => 'sos',
+                'complaint_id' => (string) $alertId,
+                'reference' => $reference,
+                'latitude' => (string) $lat,
+                'longitude' => (string) $lng,
+            ))) {
+                $adminCount++;
+            }
+        }
+        $extra = isset($cfg['sos_fcm_tokens']) && is_array($cfg['sos_fcm_tokens'])
+            ? $cfg['sos_fcm_tokens']
+            : array();
+        foreach ($extra as $tok) {
+            $tok = trim((string) $tok);
+            if ($tok === '') {
+                continue;
+            }
+            if (tg_fcm_send_legacy($serverKey, $tok, $title, $body, array(
+                'type' => 'sos',
+                'complaint_id' => (string) $alertId,
+                'reference' => $reference,
+                'latitude' => (string) $lat,
+                'longitude' => (string) $lng,
+            ))) {
+                $adminCount++;
+            }
+        }
+    }
+
+    if ($rideId && $serverKey !== '') {
+        $pdo = tg_db();
+        $stmt = $pdo->prepare(
+            'SELECT u.fcm_token FROM rides r
+             INNER JOIN users u ON u.id = r.driver_id
+             WHERE r.id = ? AND u.fcm_token IS NOT NULL AND TRIM(u.fcm_token) != \'\'
+             LIMIT 1'
+        );
+        $stmt->execute(array((int) $rideId));
+        $row = $stmt->fetch();
+        if ($row && !empty($row['fcm_token'])) {
+            $driverNotified = tg_fcm_send_legacy(
+                $serverKey,
+                $row['fcm_token'],
+                $title,
+                'Passenger triggered SOS during the trip.',
+                array(
+                    'type' => 'sos',
+                    'ride_id' => (string) $rideId,
+                    'reference' => $reference,
+                )
+            );
+        }
+    }
+
+    $webhookUrl = isset($cfg['sos_webhook_url']) ? trim((string) $cfg['sos_webhook_url']) : '';
+    if ($webhookUrl !== '') {
+        $res = tg_http_post($webhookUrl, $payload);
+        $webhookOk = !empty($res['ok']);
+        if (!$webhookOk) {
+            @file_put_contents(
+                __DIR__ . '/data/sos.log',
+                tg_now() . " webhook_fail status={$res['status']} err={$res['error']}\n",
+                FILE_APPEND
+            );
+        }
+    }
+
+    $emails = array();
+    if (!empty($cfg['sos_admin_emails']) && is_array($cfg['sos_admin_emails'])) {
+        $emails = $cfg['sos_admin_emails'];
+    } elseif (!empty($cfg['sos_admin_email'])) {
+        $emails = array($cfg['sos_admin_email']);
+    }
+    $emails = array_values(array_filter(array_map('trim', $emails)));
+    if (!empty($emails)) {
+        $from = !empty($cfg['sos_mail_from'])
+            ? (string) $cfg['sos_mail_from']
+            : 'noreply@alanyaproje.com';
+        $subject = "[TaxiGo SOS] {$reference}";
+        $mailBody = "TaxiGo SOS alert\n\n"
+            . "Reference: {$reference}\n"
+            . "User: " . (isset($user['name']) ? $user['name'] : '-') . "\n"
+            . "Phone: " . (isset($user['phone']) ? $user['phone'] : '-') . "\n"
+            . "Lat/Lng: {$lat}, {$lng}\n"
+            . "Maps: {$payload['maps']}\n"
+            . "Ride: " . ($rideId ? $rideId : '-') . "\n"
+            . "Message: {$message}\n"
+            . "Time: " . tg_now() . "\n";
+        $headers = 'From: ' . $from . "\r\n"
+            . "Content-Type: text/plain; charset=UTF-8\r\n"
+            . "X-Mailer: TaxiGo-SOS\r\n";
+        $sentAny = false;
+        foreach ($emails as $to) {
+            if ($to === '') {
+                continue;
+            }
+            if (@mail($to, $subject, $mailBody, $headers)) {
+                $sentAny = true;
+            }
+        }
+        $emailOk = $sentAny;
+    }
+
+    return array(
+        'admins' => $adminCount,
+        'driver' => $driverNotified,
+        'webhook' => $webhookOk,
+        'email' => $emailOk,
+    );
 }

@@ -93,7 +93,7 @@ Future<void> setupLocator({String? baseUrl}) async {
     () => RecentPlacesService(prefs),
   );
   locator.registerLazySingleton<FeatureModulesService>(
-    () => FeatureModulesService(locator<ApiClient>()),
+    () => FeatureModulesService(locator<ApiClient>(), prefs),
   );
 
   locator.registerFactory<AuthBloc>(

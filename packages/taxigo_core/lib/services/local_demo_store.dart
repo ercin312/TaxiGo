@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../core/constants/app_constants.dart';
+import '../core/di/locator.dart';
 import '../domain/enums/driver_approval_status.dart';
 import '../domain/enums/payment_method.dart';
 import '../domain/enums/ride_status.dart';
@@ -13,11 +14,20 @@ import '../domain/models/fare_estimate_model.dart';
 import '../domain/models/ride_comms_models.dart';
 import '../domain/models/ride_model.dart';
 import '../domain/models/user_model.dart';
+import 'feature_modules_service.dart';
 
-/// In-app demo data (debug / TAXIGO_ALLOW_DEMO only).
+/// In-app demo data — active when TAXIGO_ALLOW_DEMO or Super Admin Demo module is on.
 class LocalDemoStore {
   LocalDemoStore._();
   static final LocalDemoStore instance = LocalDemoStore._();
+
+  bool get _demoOn {
+    try {
+      return locator<FeatureModulesService>().demoActive;
+    } catch (_) {
+      return AppConstants.allowDemoMode;
+    }
+  }
 
   RideModel? _activePassengerRide;
   RideModel? _activeDriverRide;
@@ -35,97 +45,97 @@ class LocalDemoStore {
   DemoAccount? _activeAccount;
 
   static const demoAccounts = <DemoAccount>[
-    // Passengers — always open on the device GPS (no city seed).
+    // Passengers — device GPS (Montenegro service area).
     DemoAccount(
-      name: 'Ahmet Yolcu',
-      phone: '+905551000001',
+      name: 'Marko Yolcu',
+      phone: '+38267000001',
       role: 'passenger',
       label: 'Yolcu 1',
     ),
     DemoAccount(
-      name: 'Ayşe Yolcu',
-      phone: '+905551000002',
+      name: 'Ana Yolcu',
+      phone: '+38267000002',
       role: 'passenger',
       label: 'Yolcu 2',
     ),
-    // Taxis in different cities — seed location only for these driver demos.
+    // Taxis across Montenegro cities.
     DemoAccount(
-      name: 'Mehmet Taksim',
-      phone: '+905552000001',
+      name: 'Nikola Podgorica',
+      phone: '+38268000001',
       role: 'driver',
-      label: 'Taksim',
-      areaLabel: 'İstanbul · Taksim',
-      latitude: 41.0369,
-      longitude: 28.9850,
+      label: 'Podgorica',
+      areaLabel: 'Podgorica · Centar',
+      latitude: 42.4410,
+      longitude: 19.2628,
       vehicleMake: 'Toyota',
       vehicleModel: 'Corolla',
-      vehiclePlate: '34 TG 01',
-      vehicleColor: 'Beyaz',
+      vehiclePlate: 'PG TG 01',
+      vehicleColor: 'Bijela',
     ),
     DemoAccount(
-      name: 'Can Kadıköy',
-      phone: '+905552000002',
+      name: 'Luka Budva',
+      phone: '+38268000002',
       role: 'driver',
-      label: 'Kadıköy',
-      areaLabel: 'İstanbul · Kadıköy',
-      latitude: 40.9901,
-      longitude: 29.0292,
+      label: 'Budva',
+      areaLabel: 'Budva · Stari Grad',
+      latitude: 42.2864,
+      longitude: 18.8400,
       vehicleMake: 'Volkswagen',
       vehicleModel: 'Passat',
-      vehiclePlate: '34 TG 02',
-      vehicleColor: 'Siyah',
+      vehiclePlate: 'BD TG 02',
+      vehicleColor: 'Crna',
     ),
     DemoAccount(
-      name: 'Emre Beşiktaş',
-      phone: '+905552000003',
+      name: 'Petar Kotor',
+      phone: '+38268000003',
       role: 'driver',
-      label: 'Beşiktaş',
-      areaLabel: 'İstanbul · Beşiktaş',
-      latitude: 41.0422,
-      longitude: 29.0067,
+      label: 'Kotor',
+      areaLabel: 'Kotor · Stari Grad',
+      latitude: 42.4247,
+      longitude: 18.7712,
       vehicleMake: 'Hyundai',
       vehicleModel: 'Elantra',
-      vehiclePlate: '34 TG 03',
-      vehicleColor: 'Gri',
+      vehiclePlate: 'KO TG 03',
+      vehicleColor: 'Siva',
     ),
     DemoAccount(
-      name: 'Ali Kızılay',
-      phone: '+905552000004',
+      name: 'Ivan Tivat',
+      phone: '+38268000004',
       role: 'driver',
-      label: 'Ankara',
-      areaLabel: 'Ankara · Kızılay',
-      latitude: 39.9208,
-      longitude: 32.8541,
-      vehicleMake: 'Renault',
-      vehicleModel: 'Megane',
-      vehiclePlate: '06 TG 01',
-      vehicleColor: 'Beyaz',
+      label: 'Tivat',
+      areaLabel: 'Tivat · Porto Montenegro',
+      latitude: 42.4340,
+      longitude: 18.7064,
+      vehicleMake: 'Mercedes',
+      vehicleModel: 'Vito',
+      vehiclePlate: 'TV TG 04',
+      vehicleColor: 'Crna',
     ),
     DemoAccount(
-      name: 'Deniz Alsancak',
-      phone: '+905552000005',
+      name: 'Stefan Bar',
+      phone: '+38268000005',
       role: 'driver',
-      label: 'İzmir',
-      areaLabel: 'İzmir · Alsancak',
-      latitude: 38.4360,
-      longitude: 27.1428,
-      vehicleMake: 'Fiat',
-      vehicleModel: 'Egea',
-      vehiclePlate: '35 TG 01',
-      vehicleColor: 'Sarı',
-    ),
-    DemoAccount(
-      name: 'Burak Lara',
-      phone: '+905552000006',
-      role: 'driver',
-      label: 'Antalya',
-      areaLabel: 'Antalya · Lara',
-      latitude: 36.8565,
-      longitude: 30.7925,
+      label: 'Bar',
+      areaLabel: 'Bar · Centar',
+      latitude: 42.0931,
+      longitude: 19.1003,
       vehicleMake: 'Skoda',
       vehicleModel: 'Octavia',
-      vehiclePlate: '07 TG 01',
-      vehicleColor: 'Lacivert',
+      vehiclePlate: 'BR TG 05',
+      vehicleColor: 'Plava',
+    ),
+    DemoAccount(
+      name: 'Milo Herceg Novi',
+      phone: '+38268000006',
+      role: 'driver',
+      label: 'Herceg Novi',
+      areaLabel: 'Herceg Novi · Centar',
+      latitude: 42.4514,
+      longitude: 18.5375,
+      vehicleMake: 'Renault',
+      vehicleModel: 'Megane',
+      vehiclePlate: 'HN TG 06',
+      vehicleColor: 'Bijela',
     ),
   ];
 
@@ -267,8 +277,8 @@ class LocalDemoStore {
       approvedAt: DateTime.now().subtract(const Duration(days: 30)),
       vehicleMake: account?.vehicleMake ?? 'Toyota',
       vehicleModel: account?.vehicleModel ?? 'Corolla',
-      vehiclePlate: account?.vehiclePlate ?? '34 TG 01',
-      vehicleColor: account?.vehicleColor ?? 'Beyaz',
+      vehiclePlate: account?.vehiclePlate ?? 'PG TG 01',
+      vehicleColor: account?.vehicleColor ?? 'Bijela',
       currentLatitude: account?.latitude,
       currentLongitude: account?.longitude,
     );
@@ -357,7 +367,7 @@ class LocalDemoStore {
           : RideStatus.driverArriving,
       driverId: bidding ? null : 1,
       driverName: bidding ? null : 'Demo Driver',
-      vehiclePlate: bidding ? null : 'TG DEMO',
+      vehiclePlate: bidding ? null : 'PG DEMO',
       pickupLatitude: pickupLatitude,
       pickupLongitude: pickupLongitude,
       pickupAddress: pickupAddress,
@@ -392,7 +402,7 @@ class LocalDemoStore {
       }
     }
     // Instant without a pre-assigned driver: soft auto-match in demo only.
-    if (AppConstants.allowDemoMode && !bidding && ride.status == RideStatus.pending) {
+    if (_demoOn && !bidding && ride.status == RideStatus.pending) {
       Future<void>.delayed(const Duration(seconds: 2), () {
         if (_activePassengerRide?.id != ride.id) return;
         if (_activePassengerRide?.status != RideStatus.pending) return;
@@ -401,8 +411,8 @@ class LocalDemoStore {
           driverId: 7101,
           driverAssignedAt: DateTime.now(),
           finalFare: fare,
-          driverName: 'TaxiGo Sürücü',
-          vehiclePlate: '34 TG 100',
+          driverName: 'TaxiGo ME',
+          vehiclePlate: 'PG TG 100',
         );
       });
       Future<void>.delayed(const Duration(seconds: 3), () {
@@ -434,7 +444,7 @@ class LocalDemoStore {
     if (pending != null && pending.status == RideStatus.pending) {
       return [pending];
     }
-    if (AppConstants.allowDemoMode) {
+    if (_demoOn) {
       return [_sampleIncomingRide()];
     }
     return const [];
@@ -446,16 +456,16 @@ class LocalDemoStore {
       reference: 'DEMO-REQ',
       passengerId: 1001,
       status: RideStatus.pending,
-      pickupLatitude: 41.015,
-      pickupLongitude: 28.98,
-      pickupAddress: 'Taksim Meydanı',
-      dropoffLatitude: 41.04,
-      dropoffLongitude: 29.00,
-      dropoffAddress: 'Levent Metro',
-      estimatedDistanceKm: 4.2,
-      estimatedDurationMinutes: 12,
-      estimatedFare: 12.50,
-      offeredFare: 12.50,
+      pickupLatitude: 42.4410,
+      pickupLongitude: 19.2628,
+      pickupAddress: 'Trg Republike, Podgorica',
+      dropoffLatitude: 42.2864,
+      dropoffLongitude: 18.8400,
+      dropoffAddress: 'Budva Old Town',
+      estimatedDistanceKm: 62.0,
+      estimatedDurationMinutes: 55,
+      estimatedFare: 85.0,
+      offeredFare: 85.0,
       minimumFare: 5,
       isBidding: true,
       paymentMethod: PaymentMethod.cash,

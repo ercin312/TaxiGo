@@ -52,7 +52,7 @@ class NearbyFleetSimulator {
       if (!_running) return;
       final taxi = await _createTaxi(
         id: 'fleet_$i',
-        label: 'Taksi ${i + 1}',
+        label: 'PG Taxi ${i + 1}',
         center: center,
         seed: i,
       );

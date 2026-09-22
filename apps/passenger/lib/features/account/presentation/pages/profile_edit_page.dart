@@ -66,25 +66,37 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.editProfile)),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
           children: [
             TextField(
               controller: _nameController,
-              decoration: InputDecoration(labelText: l10n.fullName),
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                labelText: l10n.fullName,
+                prefixIcon: const Icon(Icons.person_outline_rounded),
+              ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _emailController,
-              decoration: InputDecoration(labelText: l10n.email),
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: l10n.email,
+                prefixIcon: const Icon(Icons.email_outlined),
+              ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _phoneController,
-              decoration: InputDecoration(labelText: l10n.phoneNumber),
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: l10n.phoneNumber,
+                prefixIcon: const Icon(Icons.phone_outlined),
+              ),
             ),
-            const Spacer(),
+            const SizedBox(height: 28),
             PrimaryButton(
               label: l10n.save,
               isLoading: _loading,

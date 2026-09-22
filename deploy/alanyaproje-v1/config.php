@@ -13,6 +13,15 @@ $cfg = array(
     'token_ttl_days' => 60,
     'otp_ttl_seconds' => 300,
     'cors_origin' => '*',
+    // SOS ops notify (override in config.local.php)
+    'sos_notify_admins' => true,
+    'sos_fcm_server_key' => getenv('TAXIGO_FCM_SERVER_KEY') ?: '',
+    'sos_fcm_tokens' => array(),
+    'sos_admin_emails' => array(),
+    'sos_admin_email' => getenv('TAXIGO_SOS_ADMIN_EMAIL') ?: '',
+    'sos_mail_from' => getenv('TAXIGO_SOS_MAIL_FROM') ?: 'noreply@alanyaproje.com',
+    'sos_webhook_url' => getenv('TAXIGO_SOS_WEBHOOK_URL') ?: '',
+    'ops_api_key' => getenv('TAXIGO_OPS_API_KEY') ?: 'taxigo-ops-sos',
 );
 
 $local = __DIR__ . '/config.local.php';

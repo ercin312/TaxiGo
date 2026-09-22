@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:taxigo_core/taxigo_core.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SosButton extends StatelessWidget {
   const SosButton({super.key, this.rideId});
@@ -28,6 +29,13 @@ class SosButton extends StatelessWidget {
     );
   }
 
+  Future<void> _dialEmergency() async {
+    final uri = Uri(scheme: 'tel', path: '112');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
   Future<void> _sendSos(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
@@ -51,6 +59,22 @@ class SosButton extends StatelessWidget {
 
     try {
       final position = await _resolvePosition();
+      final auth = locator<AuthRepository>();
+      final token = await auth.getStoredToken();
+      if (auth.isLocalToken(token)) {
+        await _dialEmergency();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${l10n.sosSent} (yerel oturum — sunucu bildirimi için OTP/sosyal giriş gerekir)',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
       final api = locator<ApiClient>();
       await api.post(
         ApiEndpoints.safetySos,
@@ -68,10 +92,21 @@ class SosButton extends StatelessWidget {
     } catch (e) {
       if (!context.mounted) return;
       final raw = e.toString();
-      final message = (raw.contains('location_denied') ||
-              raw.contains('location_off'))
-          ? l10n.locationUnavailableMapSelect
-          : (e is ApiException ? e.message : raw);
+      String message;
+      if (raw.contains('location_denied') || raw.contains('location_off')) {
+        message = l10n.locationUnavailableMapSelect;
+      } else if (e is ApiException) {
+        if (e.statusCode == 401) {
+          message = 'Oturum geçersiz. Tekrar giriş yapıp SOS’u yeniden deneyin.';
+        } else if (e.statusCode == 404) {
+          message =
+              'SOS servisi bulunamadı. İnternet bağlantınızı kontrol edin veya uygulamayı güncelleyin.';
+        } else {
+          message = e.message;
+        }
+      } else {
+        message = raw;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );

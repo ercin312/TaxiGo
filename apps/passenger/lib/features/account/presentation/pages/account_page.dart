@@ -47,58 +47,87 @@ class _AccountPageState extends State<AccountPage> {
           children: [
             SoftCard(
               padding: const EdgeInsets.all(18),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundColor: AppColors.mist,
-                    child: Text(
-                      (user?.name.isNotEmpty ?? false)
-                          ? user!.name[0].toUpperCase()
-                          : '?',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          user?.name ?? l10n.profile,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      CircleAvatar(
+                        radius: 30,
+                        backgroundColor: AppColors.mist,
+                        child: Text(
+                          (user?.name.isNotEmpty ?? false)
+                              ? user!.name[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
+                          ),
                         ),
-                        const SizedBox(height: 4),
-                        Row(
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
-                              Icons.star_rounded,
-                              size: 18,
-                              color: AppColors.accent,
+                            Text(
+                              user?.name ?? l10n.profile,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: false,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
                             ),
-                            const SizedBox(width: 4),
-                            Text('0 · ${l10n.totalTrips(_tripCount)}'),
+                            const SizedBox(height: 4),
+                            Text(
+                              user?.phone ?? user?.email ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: false,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: AppColors.textSecondaryLight,
+                                  ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.star_rounded,
+                                  size: 18,
+                                  color: AppColors.accent,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    '0 · ${l10n.totalTrips(_tripCount)}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    softWrap: false,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => context.push('/complaints'),
-                    icon: const Icon(Icons.help_outline, size: 16),
-                    label: Text(l10n.help),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.success,
-                      side: const BorderSide(color: AppColors.success),
-                      visualDensity: VisualDensity.compact,
-                    ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        tooltip: l10n.help,
+                        onPressed: () => context.push('/complaints'),
+                        style: IconButton.styleFrom(
+                          foregroundColor: AppColors.success,
+                          side: const BorderSide(color: AppColors.success),
+                        ),
+                        icon: const Icon(Icons.help_outline_rounded),
+                      ),
+                    ],
                   ),
                 ],
               ),
