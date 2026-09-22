@@ -124,6 +124,102 @@ function tg_migrate(PDO $pdo)
             FOREIGN KEY(user_id) REFERENCES users(id)
         )'
     );
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS drivers (
+            user_id INTEGER PRIMARY KEY,
+            is_online INTEGER NOT NULL DEFAULT 0,
+            latitude REAL,
+            longitude REAL,
+            heading REAL DEFAULT 0,
+            updated_at TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )'
+    );
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS rides (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reference TEXT NOT NULL,
+            passenger_id INTEGER NOT NULL,
+            driver_id INTEGER,
+            status TEXT NOT NULL DEFAULT "pending",
+            pickup_latitude REAL NOT NULL,
+            pickup_longitude REAL NOT NULL,
+            pickup_address TEXT NOT NULL,
+            dropoff_latitude REAL NOT NULL,
+            dropoff_longitude REAL NOT NULL,
+            dropoff_address TEXT NOT NULL,
+            estimated_fare REAL,
+            offered_fare REAL,
+            minimum_fare REAL,
+            final_fare REAL,
+            is_bidding INTEGER NOT NULL DEFAULT 0,
+            vehicle_type TEXT DEFAULT "standard",
+            product_mode TEXT DEFAULT "taxi",
+            payment_method TEXT DEFAULT "cash",
+            passenger_note TEXT,
+            driver_assigned_at TEXT,
+            driver_arrived_at TEXT,
+            started_at TEXT,
+            completed_at TEXT,
+            cancelled_at TEXT,
+            created_at TEXT,
+            updated_at TEXT,
+            FOREIGN KEY(passenger_id) REFERENCES users(id),
+            FOREIGN KEY(driver_id) REFERENCES users(id)
+        )'
+    );
+}
+
+function tg_ride_row_to_api(array $ride, PDO $pdo = null)
+{
+    $pdo = $pdo ?: tg_db();
+    $out = array(
+        'id' => (int) $ride['id'],
+        'reference' => $ride['reference'],
+        'passenger_id' => (int) $ride['passenger_id'],
+        'driver_id' => $ride['driver_id'] !== null ? (int) $ride['driver_id'] : null,
+        'status' => $ride['status'],
+        'pickup_latitude' => (float) $ride['pickup_latitude'],
+        'pickup_longitude' => (float) $ride['pickup_longitude'],
+        'pickup_address' => $ride['pickup_address'],
+        'dropoff_latitude' => (float) $ride['dropoff_latitude'],
+        'dropoff_longitude' => (float) $ride['dropoff_longitude'],
+        'dropoff_address' => $ride['dropoff_address'],
+        'estimated_fare' => $ride['estimated_fare'] !== null ? (float) $ride['estimated_fare'] : null,
+        'offered_fare' => $ride['offered_fare'] !== null ? (float) $ride['offered_fare'] : null,
+        'minimum_fare' => $ride['minimum_fare'] !== null ? (float) $ride['minimum_fare'] : null,
+        'final_fare' => $ride['final_fare'] !== null ? (float) $ride['final_fare'] : null,
+        'is_bidding' => ((int) $ride['is_bidding']) === 1,
+        'vehicle_type' => $ride['vehicle_type'] ? $ride['vehicle_type'] : 'standard',
+        'product_mode' => $ride['product_mode'] ? $ride['product_mode'] : 'taxi',
+        'payment_method' => $ride['payment_method'] ? $ride['payment_method'] : 'cash',
+        'passenger_note' => $ride['passenger_note'],
+        'driver_assigned_at' => $ride['driver_assigned_at'],
+        'driver_arrived_at' => $ride['driver_arrived_at'],
+        'started_at' => $ride['started_at'],
+        'completed_at' => $ride['completed_at'],
+        'cancelled_at' => $ride['cancelled_at'],
+        'created_at' => $ride['created_at'],
+        'updated_at' => $ride['updated_at'],
+    );
+    if (!empty($ride['driver_id'])) {
+        $stmt = $pdo->prepare('SELECT * FROM users WHERE id = ?');
+        $stmt->execute(array($ride['driver_id']));
+        $du = $stmt->fetch();
+        if ($du) {
+            $out['driver_name'] = $du['name'];
+            $out['driver'] = array(
+                'id' => (int) $du['id'],
+                'user' => array('id' => (int) $du['id'], 'name' => $du['name'], 'phone' => $du['phone']),
+                'vehicle' => array(
+                    'plate_number' => 'ME TG ' . substr((string) $du['id'], -3),
+                    'make' => 'Toyota',
+                    'model' => 'Corolla',
+                ),
+            );
+        }
+    }
+    return $out;
 }
 
 function tg_now()
