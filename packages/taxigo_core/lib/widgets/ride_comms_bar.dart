@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../core/di/locator.dart';
 import '../core/theme/app_colors.dart';
@@ -10,8 +9,8 @@ import '../domain/repositories/ride_comms_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../services/feature_modules_service.dart';
 
-/// Call + Message actions for an active ride (module: `ride_comms`).
-class RideCommsBar extends StatefulWidget {
+/// In-ride messaging only (no calling). Module: `ride_comms`.
+class RideCommsBar extends StatelessWidget {
   const RideCommsBar({
     super.key,
     required this.rideId,
@@ -21,61 +20,12 @@ class RideCommsBar extends StatefulWidget {
   final int rideId;
   final bool compact;
 
-  @override
-  State<RideCommsBar> createState() => _RideCommsBarState();
-}
-
-class _RideCommsBarState extends State<RideCommsBar> {
-  bool _callBusy = false;
-
-  Future<void> _startCall() async {
-    if (_callBusy) return;
-    final l10n = AppLocalizations.of(context)!;
-    setState(() => _callBusy = true);
-    try {
-      final result =
-          await locator<RideCommsRepository>().startMaskedCall(widget.rideId);
-      if (!mounted) return;
-
-      await result.fold(
-        (error) async {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error)),
-          );
-        },
-        (session) async {
-          final dial = session.dialNumber;
-          if (dial != null && dial.isNotEmpty) {
-            final uri = Uri(scheme: 'tel', path: dial);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri);
-            }
-          }
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                dial != null && dial.isNotEmpty
-                    ? l10n.maskedCallDialing
-                    : session.instructions.isNotEmpty
-                        ? session.instructions
-                        : l10n.maskedCallRequested,
-              ),
-            ),
-          );
-        },
-      );
-    } finally {
-      if (mounted) setState(() => _callBusy = false);
-    }
-  }
-
-  void _openChat() {
+  void _openChat(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => RideChatSheet(rideId: widget.rideId),
+      builder: (context) => RideChatSheet(rideId: rideId),
     );
   }
 
@@ -86,58 +36,29 @@ class _RideCommsBarState extends State<RideCommsBar> {
       return const SizedBox.shrink();
     }
 
-    if (widget.compact) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            tooltip: l10n.maskedCall,
-            onPressed: _callBusy ? null : _startCall,
-            icon: _callBusy
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.phone_in_talk_rounded),
-          ),
-          IconButton(
-            tooltip: l10n.rideChat,
-            onPressed: _openChat,
-            icon: const Icon(Icons.chat_bubble_outline_rounded),
-          ),
-        ],
+    if (compact) {
+      return IconButton(
+        tooltip: l10n.rideChat,
+        onPressed: () => _openChat(context),
+        icon: const Icon(Icons.chat_bubble_outline_rounded),
       );
     }
 
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _callBusy ? null : _startCall,
-            icon: _callBusy
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.phone_in_talk_rounded),
-            label: Text(l10n.maskedCall),
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.tonalIcon(
+        onPressed: () => _openChat(context),
+        icon: const Icon(Icons.chat_bubble_outline_rounded),
+        label: Text(l10n.rideChat),
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.ink,
+          foregroundColor: AppColors.accent,
+          minimumSize: const Size.fromHeight(48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: FilledButton.tonalIcon(
-            onPressed: _openChat,
-            icon: const Icon(Icons.chat_bubble_outline_rounded),
-            label: Text(l10n.rideChat),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.ink,
-              foregroundColor: AppColors.accent,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -282,12 +203,39 @@ class _RideChatSheetState extends State<RideChatSheet> {
               padding: const EdgeInsets.fromLTRB(20, 14, 12, 8),
               child: Row(
                 children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.ink,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.chat_bubble_rounded,
+                      color: AppColors.accent,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      l10n.rideChat,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.rideChat,
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                        ),
+                        Text(
+                          l10n.rideChatPrivacyHint,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textSecondaryLight,
+                                  ),
+                        ),
+                      ],
                     ),
                   ),
                   IconButton(
@@ -297,16 +245,7 @@ class _RideChatSheetState extends State<RideChatSheet> {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                l10n.rideChatPrivacyHint,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondaryLight,
-                    ),
-              ),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             if (_templates.isNotEmpty)
               SizedBox(
                 height: 40,

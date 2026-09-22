@@ -963,7 +963,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get rideChatPrivacyHint =>
-      'Numaralar gizli kalır. Hızlı yanıt veya kısa not kullanın.';
+      'Sadece mesaj — telefon numaraları gizli kalır.';
 
   @override
   String get maskedCallDialing => 'Gizli numara ile bağlanılıyor…';

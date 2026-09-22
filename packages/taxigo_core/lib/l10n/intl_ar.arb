@@ -330,7 +330,7 @@
   "maskedCall": "اتصال خاص",
   "rideChat": "رسالة",
   "rideChatHint": "رسالة قصيرة…",
-  "rideChatPrivacyHint": "الأرقام تبقى خاصة. استخدم الردود السريعة أو ملاحظة قصيرة.",
+  "rideChatPrivacyHint": "رسائل فقط — تبقى أرقام الهاتف خاصة.",
   "maskedCallDialing": "جارٍ الاتصال عبر رقم خاص…",
   "maskedCallRequested": "تم طلب اتصال خاص. تم إشعار الطرف الآخر.",
   "chatTplWhereAreYou": "أين أنت؟",

@@ -23,7 +23,7 @@ class RideCommsController extends Controller
         'at_the_door' => "I'm at the door / entrance.",
         'luggage' => 'I have luggage.',
         'running_late' => "I'll be 2–3 minutes late.",
-        'cant_find' => "I can't find you — can you call?",
+        'cant_find' => "I can't find you — please message me.",
         'ok' => 'OK, got it.',
         'on_my_way' => "I'm on my way.",
     ];
@@ -133,26 +133,10 @@ class RideCommsController extends Controller
 
     public function maskedCall(Request $request, Ride $ride): JsonResponse
     {
-        if ($this->modules->disabled('ride_comms')) {
-            return response()->json(['message' => 'Ride communications module is disabled.'], 403);
-        }
-
-        $user = $request->user();
-        if (! $this->authorizeParticipant($ride, $user)) {
-            return response()->json(['message' => 'Unauthorized.'], 403);
-        }
-
-        try {
-            $session = $this->maskedCall->start($ride, $user);
-        } catch (RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        $this->notifyCallRequest($ride, $user);
-
+        // Product decision: in-ride voice calls disabled; messaging only.
         return response()->json([
-            'call' => $session,
-        ]);
+            'message' => 'In-ride calling is disabled. Use ride messaging instead.',
+        ], 403);
     }
 
     protected function authorizeParticipant(Ride $ride, User $user): bool

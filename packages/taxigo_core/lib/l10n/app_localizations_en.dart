@@ -961,8 +961,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rideChatHint => 'Short message…';
 
   @override
-  String get rideChatPrivacyHint =>
-      'Numbers stay private. Use quick replies or a short note.';
+  String get rideChatPrivacyHint => 'Chat only — phone numbers stay private.';
 
   @override
   String get maskedCallDialing => 'Connecting via private number…';

@@ -957,7 +957,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get rideChatPrivacyHint =>
-      'Номера скрыты. Используйте быстрые ответы или короткую заметку.';
+      'Только сообщения — номера остаются скрытыми.';
 
   @override
   String get maskedCallDialing => 'Соединение через скрытый номер…';

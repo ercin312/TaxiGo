@@ -330,7 +330,7 @@
   "maskedCall": "Gizli arama",
   "rideChat": "Mesaj",
   "rideChatHint": "Kısa mesaj…",
-  "rideChatPrivacyHint": "Numaralar gizli kalır. Hızlı yanıt veya kısa not kullanın.",
+  "rideChatPrivacyHint": "Sadece mesaj — telefon numaraları gizli kalır.",
   "maskedCallDialing": "Gizli numara ile bağlanılıyor…",
   "maskedCallRequested": "Gizli arama isteği gönderildi. Karşı taraf bilgilendirildi.",
   "chatTplWhereAreYou": "Neredesin?",

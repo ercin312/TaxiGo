@@ -1919,7 +1919,7 @@ abstract class AppLocalizations {
   /// No description provided for @rideChatPrivacyHint.
   ///
   /// In en, this message translates to:
-  /// **'Numbers stay private. Use quick replies or a short note.'**
+  /// **'Chat only — phone numbers stay private.'**
   String get rideChatPrivacyHint;
 
   /// No description provided for @maskedCallDialing.

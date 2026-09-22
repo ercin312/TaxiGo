@@ -400,7 +400,7 @@
   "maskedCall": "Private call",
   "rideChat": "Message",
   "rideChatHint": "Short message…",
-  "rideChatPrivacyHint": "Numbers stay private. Use quick replies or a short note.",
+  "rideChatPrivacyHint": "Chat only — phone numbers stay private.",
   "maskedCallDialing": "Connecting via private number…",
   "maskedCallRequested": "Private call requested. The other party was notified.",
   "chatTplWhereAreYou": "Where are you?",

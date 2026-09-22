@@ -344,7 +344,7 @@
   "maskedCall": "Privatni poziv",
   "rideChat": "Poruka",
   "rideChatHint": "Kratka poruka…",
-  "rideChatPrivacyHint": "Brojevi ostaju privatni. Koristite brze odgovore ili kratku bilješku.",
+  "rideChatPrivacyHint": "Samo poruke — brojevi telefona ostaju privatni.",
   "maskedCallDialing": "Povezivanje preko privatnog broja…",
   "maskedCallRequested": "Privatni poziv zatražen. Druga strana je obaviještena.",
   "chatTplWhereAreYou": "Gdje si?",

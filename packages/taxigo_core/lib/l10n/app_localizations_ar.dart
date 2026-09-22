@@ -952,8 +952,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get rideChatHint => 'رسالة قصيرة…';
 
   @override
-  String get rideChatPrivacyHint =>
-      'الأرقام تبقى خاصة. استخدم الردود السريعة أو ملاحظة قصيرة.';
+  String get rideChatPrivacyHint => 'رسائل فقط — تبقى أرقام الهاتف خاصة.';
 
   @override
   String get maskedCallDialing => 'جارٍ الاتصال عبر رقم خاص…';

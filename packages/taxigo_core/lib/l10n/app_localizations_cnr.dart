@@ -961,7 +961,7 @@ class AppLocalizationsCnr extends AppLocalizations {
 
   @override
   String get rideChatPrivacyHint =>
-      'Brojevi ostaju privatni. Koristite brze odgovore ili kratku bilješku.';
+      'Samo poruke — brojevi telefona ostaju privatni.';
 
   @override
   String get maskedCallDialing => 'Povezivanje preko privatnog broja…';
