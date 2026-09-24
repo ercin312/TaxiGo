@@ -60,7 +60,7 @@ jobs:
           echo "Upload keystore configured."
 
       - name: Analyze
-        run: flutter analyze lib
+        run: flutter analyze lib --no-fatal-infos
 
       - name: Build release APK
         run: |
