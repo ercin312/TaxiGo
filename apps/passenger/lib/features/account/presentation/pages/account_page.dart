@@ -73,7 +73,19 @@ class _AccountPageState extends State<AccountPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              user?.name ?? l10n.profile,
+                              () {
+                                final name = user?.name.trim() ?? '';
+                                if (name.isNotEmpty &&
+                                    name != 'Apple Traveler' &&
+                                    name != 'Google Traveler') {
+                                  return name;
+                                }
+                                final email = user?.email?.trim();
+                                if (email != null && email.isNotEmpty) {
+                                  return email.split('@').first;
+                                }
+                                return l10n.profile;
+                              }(),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               softWrap: false,
@@ -84,7 +96,17 @@ class _AccountPageState extends State<AccountPage> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              user?.phone ?? user?.email ?? '',
+                              () {
+                                final phone = user?.phone?.trim();
+                                if (phone != null && phone.isNotEmpty) {
+                                  return phone;
+                                }
+                                final email = user?.email?.trim();
+                                if (email != null && email.isNotEmpty) {
+                                  return email;
+                                }
+                                return '';
+                              }(),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               softWrap: false,
@@ -188,7 +210,7 @@ class _AccountPageState extends State<AccountPage> {
                     title: l10n.upcomingTrips,
                     subtitle: l10n.upcomingTripsHint,
                     iconBackground: const Color(0xFFEDE7FF),
-                    onTap: () => context.go('/trips'),
+                    onTap: () => context.go('/trips?tab=upcoming'),
                   ),
                   const Divider(height: 1),
                   MenuRowTile(

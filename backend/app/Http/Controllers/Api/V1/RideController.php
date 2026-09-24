@@ -319,6 +319,10 @@ class RideController extends Controller
                 RideStatus::CancelledByDriver,
                 RideStatus::Expired,
             ])
+            ->where(function ($q) {
+                $q->whereNull('scheduled_at')
+                    ->orWhere('scheduled_at', '<=', now());
+            })
             ->latest()
             ->with(['driver.user', 'driver.vehicle'])
             ->first();

@@ -48,6 +48,11 @@ class DriverRideController extends Controller
                 $q->whereNull('expires_at')
                     ->orWhere('expires_at', '>', now());
             })
+            // Instant jobs only — future scheduled rides use /planned.
+            ->where(function ($q) {
+                $q->whereNull('scheduled_at')
+                    ->orWhere('scheduled_at', '<=', now());
+            })
             ->latest();
 
         $rides = $query->paginate($request->integer('per_page', 15));
@@ -91,11 +96,44 @@ class DriverRideController extends Controller
                 RideStatus::CancelledByDriver,
                 RideStatus::Expired,
             ])
+            ->where(function ($q) {
+                $q->whereNull('scheduled_at')
+                    ->orWhere('scheduled_at', '<=', now());
+            })
             ->latest()
             ->with(['passenger', 'locations'])
             ->first();
 
         return response()->json(['ride' => $ride]);
+    }
+
+    public function planned(Request $request): JsonResponse
+    {
+        $driver = $request->user()->driver;
+
+        if (! $driver) {
+            return response()->json(['message' => 'Driver profile not found.'], 404);
+        }
+
+        $rides = Ride::query()
+            ->whereNotIn('status', [
+                RideStatus::Completed,
+                RideStatus::CancelledByPassenger,
+                RideStatus::CancelledByDriver,
+                RideStatus::Expired,
+            ])
+            ->whereNotNull('scheduled_at')
+            ->where('scheduled_at', '>', now())
+            ->where(function ($q) use ($driver) {
+                $q->whereNull('driver_id')
+                    ->orWhere('driver_id', $driver->id);
+            })
+            ->with(['passenger'])
+            ->orderBy('scheduled_at')
+            ->limit(40)
+            ->get();
+
+        return response()->json(['data' => $rides]);
     }
 
     public function history(Request $request): JsonResponse
@@ -140,11 +178,15 @@ class DriverRideController extends Controller
             ]);
         }
 
+        $isFutureScheduled = $ride->scheduled_at !== null && $ride->scheduled_at->isFuture();
+
         try {
             $ride = $this->statusService->transition($ride, RideStatus::DriverAssigned, [
                 'driver_id' => $driver->id,
             ]);
-            $ride = $this->statusService->transition($ride, RideStatus::DriverArriving);
+            if (! $isFutureScheduled) {
+                $ride = $this->statusService->transition($ride, RideStatus::DriverArriving);
+            }
         } catch (InvalidRideTransitionException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
@@ -152,7 +194,7 @@ class DriverRideController extends Controller
         $this->rtdbService->syncRide($ride);
 
         return response()->json([
-            'message' => 'Ride accepted.',
+            'message' => $isFutureScheduled ? 'Ride reserved.' : 'Ride accepted.',
             'ride' => $ride->load('passenger'),
         ]);
     }

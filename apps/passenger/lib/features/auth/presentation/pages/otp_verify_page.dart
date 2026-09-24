@@ -4,10 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:taxigo_core/taxigo_core.dart';
 
-import '../../../../app/router.dart';
 import '../../../../core/app_helpers.dart';
-import '../../../../di/locator.dart';
-import '../../../app_mode/application/app_mode_cubit.dart';
 
 class OtpVerifyPage extends StatefulWidget {
   const OtpVerifyPage({
@@ -39,18 +36,7 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state.status == AuthStatus.authenticated) {
-          if (!isProfileComplete(state.user)) {
-            context.go('/profile-setup');
-            return;
-          }
-          final isDriver = state.user?.role == 'driver';
-          if (isDriver) {
-            passengerGetIt<AppModeCubit>().switchToDriver(isApproved: true);
-            context.go('/driver-home');
-            return;
-          }
-          passengerGetIt<AppModeCubit>().switchToPassenger();
-          resolveHomeRoute().then((route) {
+          resolvePostAuthRoute(state.user, intendedRole: widget.role).then((route) {
             if (context.mounted) context.go(route);
           });
         } else if (state.status == AuthStatus.failure &&

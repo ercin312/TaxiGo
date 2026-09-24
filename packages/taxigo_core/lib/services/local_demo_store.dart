@@ -14,6 +14,7 @@ import '../domain/models/fare_estimate_model.dart';
 import '../domain/models/ride_comms_models.dart';
 import '../domain/models/ride_model.dart';
 import '../domain/models/user_model.dart';
+import 'app_review_seed.dart';
 import 'feature_modules_service.dart';
 
 /// In-app demo data — active when TAXIGO_ALLOW_DEMO or Super Admin Demo module is on.
@@ -215,6 +216,14 @@ class LocalDemoStore {
     _driverOnline = false;
   }
 
+  /// Once per session: add App Review completed trips without wiping live rides.
+  void ensureReviewHistorySeeded() {
+    if (_history.any((r) => r.id == 1001 || r.reference == 'TG-REVIEW-001')) {
+      return;
+    }
+    _history.addAll(AppReviewSeed.rideHistory());
+  }
+
   void clearDemoSession() {
     _activeAccount = null;
     _driver = null;
@@ -374,16 +383,17 @@ class LocalDemoStore {
     );
     final fare = offeredFare ?? estimate.totalFare;
     final bidding = matchMode == 'bidding' && scheduledAt == null;
+    final isScheduled = scheduledAt != null;
     final ride = RideModel(
       id: _nextRideId++,
       reference: 'DEMO-${DateTime.now().millisecondsSinceEpoch % 100000}',
       passengerId: passenger.id,
-      status: bidding
+      status: isScheduled || bidding
           ? RideStatus.pending
           : RideStatus.driverArriving,
-      driverId: bidding ? null : 1,
-      driverName: bidding ? null : 'Demo Driver',
-      vehiclePlate: bidding ? null : 'PG DEMO',
+      driverId: isScheduled || bidding ? null : 1,
+      driverName: isScheduled || bidding ? null : 'Demo Driver',
+      vehiclePlate: isScheduled || bidding ? null : 'PG DEMO',
       pickupLatitude: pickupLatitude,
       pickupLongitude: pickupLongitude,
       pickupAddress: pickupAddress,
@@ -402,9 +412,11 @@ class LocalDemoStore {
       scheduledAt: scheduledAt,
       passengerNote: passengerNote,
       createdAt: DateTime.now(),
-      expiresAt: DateTime.now().add(const Duration(minutes: 15)),
+      expiresAt: isScheduled
+          ? null
+          : DateTime.now().add(const Duration(minutes: 15)),
     );
-    if (scheduledAt != null) {
+    if (isScheduled) {
       _history.insert(0, ride);
       return ride;
     }
@@ -456,14 +468,36 @@ class LocalDemoStore {
 
   List<RideModel> pendingForDriver() {
     if (!_driverOnline) return const [];
+    final now = DateTime.now();
+    final scheduled = _history
+        .where((r) =>
+            r.status == RideStatus.pending &&
+            r.driverId == null &&
+            r.scheduledAt != null &&
+            r.scheduledAt!.isAfter(now))
+        .toList();
     final pending = _pendingOffer;
-    if (pending != null && pending.status == RideStatus.pending) {
-      return [pending];
+    if (pending != null &&
+        pending.status == RideStatus.pending &&
+        (pending.scheduledAt == null || !pending.scheduledAt!.isAfter(now))) {
+      return [pending, ...scheduled];
     }
     if (_demoOn) {
-      return [_sampleIncomingRide()];
+      return [_sampleIncomingRide(), ...scheduled];
     }
-    return const [];
+    return scheduled;
+  }
+
+  /// Future scheduled rides claimed by / available to this driver.
+  List<RideModel> plannedForDriver({int? driverId}) {
+    final now = DateTime.now();
+    return _history.where((r) {
+      if (r.scheduledAt == null || !r.scheduledAt!.isAfter(now)) return false;
+      if (r.status.isTerminal) return false;
+      if (r.driverId == null) return true;
+      return driverId != null && r.driverId == driverId;
+    }).toList()
+      ..sort((a, b) => a.scheduledAt!.compareTo(b.scheduledAt!));
   }
 
   RideModel _sampleIncomingRide() {
@@ -493,6 +527,9 @@ class LocalDemoStore {
     if (_activePassengerRide?.id == id) return _activePassengerRide;
     if (_activeDriverRide?.id == id) return _activeDriverRide;
     if (_pendingOffer?.id == id) return _pendingOffer;
+    for (final ride in _history) {
+      if (ride.id == id) return ride;
+    }
     if (id == 8999) return _sampleIncomingRide();
     return _activePassengerRide ?? _activeDriverRide;
   }
@@ -523,18 +560,24 @@ class LocalDemoStore {
 
   void acceptAsDriver(int rideId, int driverId) {
     final ride = getRide(rideId) ?? _sampleIncomingRide();
+    final isFutureScheduled = ride.scheduledAt != null &&
+        ride.scheduledAt!.isAfter(DateTime.now());
     final updated = ride.copyWith(
       id: ride.id,
-      status: RideStatus.driverArriving,
+      status: isFutureScheduled
+          ? RideStatus.driverAssigned
+          : RideStatus.driverArriving,
       driverId: driverId,
       driverAssignedAt: DateTime.now(),
       finalFare: ride.offeredFare ?? ride.estimatedFare,
       driverName: ride.driverName ?? 'Demo Taksi',
       vehiclePlate: ride.vehiclePlate ?? 'PG TG 01',
     );
+    _replace(updated);
+    _pendingOffer = null;
+    if (isFutureScheduled) return;
     _activeDriverRide = updated;
     _activePassengerRide = updated;
-    _pendingOffer = null;
     _todayEarnings += (updated.finalFare ?? 10) * 0.85;
   }
 
@@ -573,13 +616,22 @@ class LocalDemoStore {
 
   void _replace(RideModel updated) {
     if (_activePassengerRide?.id == updated.id) {
-      _activePassengerRide = updated;
+      _activePassengerRide =
+          updated.status.isTerminal ? null : updated;
     }
     if (_activeDriverRide?.id == updated.id) {
-      _activeDriverRide = updated;
+      _activeDriverRide = updated.status.isTerminal ? null : updated;
     }
     if (_pendingOffer?.id == updated.id) {
       _pendingOffer = updated.status == RideStatus.pending ? updated : null;
+    }
+    final idx = _history.indexWhere((r) => r.id == updated.id);
+    if (idx >= 0) {
+      _history[idx] = updated;
+    } else if (updated.status.isTerminal ||
+        (updated.scheduledAt != null &&
+            updated.scheduledAt!.isAfter(DateTime.now()))) {
+      _history.insert(0, updated);
     }
   }
 

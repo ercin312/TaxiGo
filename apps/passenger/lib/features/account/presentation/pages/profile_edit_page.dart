@@ -43,6 +43,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       email: _emailController.text.trim().isEmpty
           ? null
           : _emailController.text.trim(),
+      phone: _phoneController.text.trim().isEmpty
+          ? null
+          : _phoneController.text.trim(),
     );
     if (!mounted) return;
     setState(() => _loading = false);
@@ -51,7 +54,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         SnackBar(content: Text(error)),
       ),
       (user) {
-        context.read<AuthBloc>().add(const AuthCheckRequested());
+        context.read<AuthBloc>().add(AuthUserUpdated(user));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.profileUpdated)),
         );
@@ -90,7 +93,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             const SizedBox(height: 16),
             TextField(
               controller: _phoneController,
-              readOnly: true,
+              keyboardType: TextInputType.phone,
               decoration: InputDecoration(
                 labelText: l10n.phoneNumber,
                 prefixIcon: const Icon(Icons.phone_outlined),

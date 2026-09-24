@@ -91,7 +91,7 @@ class RideModel extends Equatable {
   bool get isScheduledUpcoming =>
       scheduledAt != null &&
       scheduledAt!.isAfter(DateTime.now()) &&
-      (status == RideStatus.pending || status == RideStatus.driverAssigned);
+      !status.isTerminal;
 
   RideModel copyWith({
     int? id,

@@ -31,6 +31,9 @@ abstract final class AppImages {
   static const String vehiclePremium =
       '$_pkg/assets/images/vehicle_premium.png';
   static const String vehicleVan = '$_pkg/assets/images/vehicle_van.png';
+  static const String loginTaxi = '$_pkg/assets/images/login_taxi.png';
+  /// Cinematic login hero photo (form cropped out).
+  static const String loginHero = '$_pkg/assets/images/login_hero.jpg';
 
   static const String historyEmpty = '$_pkg/assets/images/History_nodata.png';
   static const String favoritesEmpty = '$_pkg/assets/images/Favloc_nodata.png';

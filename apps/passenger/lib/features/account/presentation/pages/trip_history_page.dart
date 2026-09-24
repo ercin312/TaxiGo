@@ -9,7 +9,17 @@ import '../../../shell/presentation/widgets/soft_card.dart';
 import '../widgets/trip_actions_sheet.dart';
 
 class TripHistoryPage extends StatefulWidget {
-  const TripHistoryPage({super.key});
+  const TripHistoryPage({
+    super.key,
+    this.initialTabIndex = 0,
+    this.highlightRideId,
+  });
+
+  /// 0 = completed, 1 = upcoming, 2 = cancelled
+  final int initialTabIndex;
+
+  /// Just-scheduled ride id — ensures it appears even if history cache is stale.
+  final int? highlightRideId;
 
   @override
   State<TripHistoryPage> createState() => _TripHistoryPageState();
@@ -25,7 +35,8 @@ class _TripHistoryPageState extends State<TripHistoryPage>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    final initial = widget.initialTabIndex.clamp(0, 2);
+    _tabs = TabController(length: 3, vsync: this, initialIndex: initial);
     _load();
   }
 
@@ -42,26 +53,42 @@ class _TripHistoryPageState extends State<TripHistoryPage>
     });
     final result = await passengerGetIt<RideRepository>().getRideHistory();
     if (!mounted) return;
-    result.fold(
-      (error) => setState(() {
+    await result.fold(
+      (error) async => setState(() {
         _error = error;
         _loading = false;
       }),
-      (rides) => setState(() {
-        _rides = rides;
-        _loading = false;
-      }),
+      (rides) async {
+        var merged = List<RideModel>.from(rides);
+        final highlightId = widget.highlightRideId;
+        if (highlightId != null &&
+            !merged.any((r) => r.id == highlightId)) {
+          final one = await passengerGetIt<RideRepository>().getRide(highlightId);
+          one.fold((_) {}, (ride) => merged = [ride, ...merged]);
+        }
+        if (!mounted) return;
+        setState(() {
+          _rides = merged;
+          _loading = false;
+        });
+      },
     );
   }
 
   List<RideModel> _filter(int index) {
     switch (index) {
       case 1:
-        return _rides
-            .where((r) =>
-                r.isScheduledUpcoming ||
-                (r.scheduledAt != null && r.status == RideStatus.pending))
-            .toList();
+        final upcoming = _rides.where((r) {
+          if (r.scheduledAt == null) return false;
+          if (!r.scheduledAt!.isAfter(DateTime.now())) return false;
+          return !r.status.isTerminal;
+        }).toList();
+        upcoming.sort((a, b) {
+          final aa = a.scheduledAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final bb = b.scheduledAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          return aa.compareTo(bb);
+        });
+        return upcoming;
       case 2:
         return _rides
             .where((r) =>

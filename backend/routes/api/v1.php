@@ -104,6 +104,7 @@ Route::prefix('v1')->group(function () {
 
         Route::prefix('driver/rides')->group(function () {
             Route::get('pending', [DriverRideController::class, 'pending']);
+            Route::get('planned', [DriverRideController::class, 'planned']);
             Route::get('active', [DriverRideController::class, 'active']);
             Route::get('history', [DriverRideController::class, 'history']);
             Route::post('{ride}/accept', [DriverRideController::class, 'accept']);

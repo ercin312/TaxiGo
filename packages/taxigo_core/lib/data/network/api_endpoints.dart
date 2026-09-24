@@ -43,6 +43,7 @@ abstract final class ApiEndpoints {
 
   // Rides (driver)
   static const String driverRidesPending = '/driver/rides/pending';
+  static const String driverRidesPlanned = '/driver/rides/planned';
   static const String driverRidesActive = '/driver/rides/active';
   static const String driverRidesHistory = '/driver/rides/history';
 

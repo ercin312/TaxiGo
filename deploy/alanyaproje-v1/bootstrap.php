@@ -157,6 +157,7 @@ function tg_migrate(PDO $pdo)
             product_mode TEXT DEFAULT "taxi",
             payment_method TEXT DEFAULT "cash",
             passenger_note TEXT,
+            scheduled_at TEXT,
             driver_assigned_at TEXT,
             driver_arrived_at TEXT,
             started_at TEXT,
@@ -168,6 +169,12 @@ function tg_migrate(PDO $pdo)
             FOREIGN KEY(driver_id) REFERENCES users(id)
         )'
     );
+    // Existing DBs created before scheduled_at support.
+    try {
+        $pdo->exec('ALTER TABLE rides ADD COLUMN scheduled_at TEXT');
+    } catch (Throwable $e) {
+        // Column already exists.
+    }
 }
 
 function tg_ride_row_to_api(array $ride, PDO $pdo = null)
@@ -194,6 +201,7 @@ function tg_ride_row_to_api(array $ride, PDO $pdo = null)
         'product_mode' => $ride['product_mode'] ? $ride['product_mode'] : 'taxi',
         'payment_method' => $ride['payment_method'] ? $ride['payment_method'] : 'cash',
         'passenger_note' => $ride['passenger_note'],
+        'scheduled_at' => isset($ride['scheduled_at']) ? $ride['scheduled_at'] : null,
         'driver_assigned_at' => $ride['driver_assigned_at'],
         'driver_arrived_at' => $ride['driver_arrived_at'],
         'started_at' => $ride['started_at'],
@@ -360,21 +368,35 @@ function tg_find_or_create_user(array $data, $role = 'passenger')
 
     $now = tg_now();
     if ($user) {
+        $incomingName = !empty($data['name']) ? trim((string) $data['name']) : null;
+        $incomingEmail = !empty($data['email']) ? trim((string) $data['email']) : null;
+        $existingName = isset($user['name']) ? trim((string) $user['name']) : '';
+        $placeholders = array('Apple Traveler', 'Google Traveler', 'Traveler', '');
+        // Prefer a real name over empty / placeholder when Apple/Google finally sends one.
+        if ($incomingName !== null &&
+            ($existingName === '' || in_array($existingName, $placeholders, true))) {
+            $nameSql = '?';
+            $nameVal = $incomingName;
+        } else {
+            $nameSql = 'COALESCE(?, name)';
+            $nameVal = $incomingName;
+        }
+
         $stmt = $pdo->prepare(
-            'UPDATE users SET
+            "UPDATE users SET
                 firebase_uid = COALESCE(?, firebase_uid),
-                name = COALESCE(?, name),
+                name = {$nameSql},
                 email = COALESCE(?, email),
                 phone = COALESCE(?, phone),
                 avatar = COALESCE(?, avatar),
                 fcm_token = COALESCE(?, fcm_token),
                 updated_at = ?
-             WHERE id = ?'
+             WHERE id = ?"
         );
         $stmt->execute(array(
             isset($data['firebase_uid']) ? $data['firebase_uid'] : null,
-            !empty($data['name']) ? $data['name'] : null,
-            !empty($data['email']) ? $data['email'] : null,
+            $nameVal,
+            $incomingEmail,
             !empty($data['phone']) ? $data['phone'] : null,
             !empty($data['avatar']) ? $data['avatar'] : null,
             !empty($data['fcm_token']) ? $data['fcm_token'] : null,

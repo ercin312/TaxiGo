@@ -238,6 +238,30 @@ class DriverRepositoryImpl implements DriverRepository {
   }
 
   @override
+  Future<Either<String, List<RideModel>>> getPlannedRides() async {
+    if (await _isLocal) {
+      final user = await _authRepository.getStoredLocalUser();
+      final driver = user == null ? null : _demo.driverFor(user);
+      return Right(_demo.plannedForDriver(driverId: driver?.id));
+    }
+    try {
+      final response = await _apiClient.get<Map<String, dynamic>>(
+        ApiEndpoints.driverRidesPlanned,
+      );
+      final data = response.data;
+      if (data == null) return const Right([]);
+      final rides = data['data'] ?? data['rides'] ?? data;
+      return Right(ModelMappers.ridesFromJsonList(rides));
+    } on ApiException catch (e) {
+      // Older backends may not expose planned yet — fall back to empty.
+      if (e.statusCode == 404) return const Right([]);
+      return Left(e.message);
+    } catch (e) {
+      return Left(e.toString());
+    }
+  }
+
+  @override
   Future<Either<String, RideModel?>> getActiveRide() async {
     if (await _isLocal) {
       return Right(_demo.driverActiveRide);
@@ -264,7 +288,7 @@ class DriverRepositoryImpl implements DriverRepository {
     if (await _isLocal) {
       final user = await _authRepository.getStoredLocalUser();
       if (AppReviewSeed.isReviewPhone(user?.phone)) {
-        return Right(AppReviewSeed.rideHistory());
+        _demo.ensureReviewHistorySeeded();
       }
       return Right(_demo.history());
     }

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:taxigo_core/taxigo_core.dart';
 
+import '../../../../core/app_helpers.dart';
 import '../../../../core/l10n_extensions.dart';
 import '../../../app_mode/application/app_mode_cubit.dart';
 import '../../application/kyc_bloc.dart';
@@ -77,7 +78,19 @@ class _DriverRegistrationPageState extends State<DriverRegistrationPage> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.driverMode)),
+      appBar: AppBar(
+        title: Text(l10n.driverMode),
+        actions: [
+          TextButton(
+            onPressed: () {
+              takePendingIntendedRole();
+              context.read<AuthBloc>().add(const AuthLogoutRequested());
+              context.go('/login');
+            },
+            child: Text(l10n.signOut),
+          ),
+        ],
+      ),
       body: BlocConsumer<KycBloc, KycState>(
         listener: (context, state) {
           if (state is KycPendingApproval) {

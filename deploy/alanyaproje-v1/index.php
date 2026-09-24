@@ -177,16 +177,19 @@ try {
         $user = tg_require_user();
         $name = isset($body['name']) ? trim($body['name']) : null;
         $email = isset($body['email']) ? trim($body['email']) : null;
+        $phone = isset($body['phone']) ? trim($body['phone']) : null;
         $pdo = tg_db();
         $pdo->prepare(
             'UPDATE users SET
                 name = COALESCE(?, name),
                 email = COALESCE(?, email),
+                phone = COALESCE(?, phone),
                 updated_at = ?
              WHERE id = ?'
         )->execute(array(
             $name !== '' ? $name : null,
             $email !== '' ? $email : null,
+            $phone !== '' ? $phone : null,
             tg_now(),
             $user['id'],
         ));

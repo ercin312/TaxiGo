@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dartz/dartz.dart';
@@ -21,7 +22,7 @@ class AuthRepositoryImpl implements AuthRepository {
     this._prefs, {
     SocialAuthService? socialAuth,
     FcmService? fcmService,
-  })  : _socialAuth = socialAuth ?? SocialAuthService(),
+  })  : _socialAuth = socialAuth ?? SocialAuthService(prefs: _prefs),
         _fcmService = fcmService;
 
   static const _localUserKey = 'taxigo_local_user';
@@ -266,7 +267,22 @@ class AuthRepositoryImpl implements AuthRepository {
             locale: locale,
           );
         },
-        (session) async => Right(session),
+        (session) async {
+          final patched = _mergeSocialProfile(session.user, social);
+          if (patched != session.user) {
+            // Best-effort push to API so next cold start keeps name/email.
+            unawaited(_pushProfileIfNeeded(patched, session.user));
+            return Right(
+              AuthSession(
+                token: session.token,
+                user: patched,
+                firebaseCustomToken: session.firebaseCustomToken,
+                authMode: session.authMode,
+              ),
+            );
+          }
+          return Right(session);
+        },
       );
     } on SocialAuthCancelled {
       return const Left('Sign-in was cancelled.');
@@ -316,6 +332,46 @@ class AuthRepositoryImpl implements AuthRepository {
         authMode: 'social_${social.provider.name}_local',
       ),
     );
+  }
+
+  UserModel _mergeSocialProfile(UserModel user, SocialAuthResult social) {
+    const placeholders = {
+      'Apple Traveler',
+      'Google Traveler',
+      'Traveler',
+    };
+    final socialName = social.name?.trim();
+    final socialEmail = social.email?.trim();
+    final nameEmpty =
+        user.name.trim().isEmpty || placeholders.contains(user.name);
+    final emailEmpty = user.email == null || user.email!.trim().isEmpty;
+
+    return user.copyWith(
+      name: nameEmpty && socialName != null && socialName.isNotEmpty
+          ? socialName
+          : user.name,
+      email: emailEmpty && socialEmail != null && socialEmail.isNotEmpty
+          ? socialEmail
+          : user.email,
+    );
+  }
+
+  Future<void> _pushProfileIfNeeded(
+    UserModel patched,
+    UserModel original,
+  ) async {
+    final nameChanged = patched.name != original.name;
+    final emailChanged = patched.email != original.email;
+    if (!nameChanged && !emailChanged) return;
+    try {
+      await _apiClient.put<Map<String, dynamic>>(
+        ApiEndpoints.user,
+        data: {
+          if (nameChanged) 'name': patched.name,
+          if (emailChanged && patched.email != null) 'email': patched.email,
+        },
+      );
+    } catch (_) {}
   }
 
   Future<Either<String, AuthSession>> _parseAuthResponse(

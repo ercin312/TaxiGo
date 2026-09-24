@@ -144,11 +144,7 @@ class _SplashPageState extends State<SplashPage>
 
     final authState = authBloc.state;
     if (authState.status == AuthStatus.authenticated) {
-      if (!isProfileComplete(authState.user)) {
-        context.go('/profile-setup');
-      } else {
-        context.go(await resolveHomeRoute());
-      }
+      context.go(await resolvePostAuthRoute(authState.user));
       return;
     }
 

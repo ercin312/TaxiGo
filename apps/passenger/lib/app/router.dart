@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,7 +19,9 @@ import '../features/admin/presentation/pages/admin_shell_page.dart';
 import '../features/app_mode/application/app_mode_cubit.dart';
 import '../features/auth/presentation/pages/otp_verify_page.dart';
 import '../features/auth/presentation/pages/phone_login_page.dart';
+import '../features/auth/presentation/pages/phone_setup_page.dart';
 import '../features/auth/presentation/pages/profile_setup_page.dart';
+import '../core/app_helpers.dart';
 import '../features/bidding/application/bidding_bloc.dart';
 import '../features/bidding/presentation/pages/bidding_waiting_page.dart';
 import '../features/booking/application/booking_bloc.dart';
@@ -80,7 +83,8 @@ GoRouter createAppRouter(AuthBloc authBloc) {
             loc == '/splash' ||
             loc == '/home' ||
             loc == '/driver-home' ||
-            loc == '/profile-setup') {
+            loc == '/profile-setup' ||
+            loc == '/phone-setup') {
           return '/admin';
         }
       }
@@ -89,6 +93,22 @@ GoRouter createAppRouter(AuthBloc authBloc) {
           auth.user?.isAdmin != true &&
           loc == '/admin') {
         return '/home';
+      }
+
+      // After Apple/Google (or any session without phone): collect phone first.
+      if (authed &&
+          auth.user?.isAdmin != true &&
+          needsPhoneNumber(auth.user) &&
+          loc != '/phone-setup' &&
+          loc != '/splash') {
+        return '/phone-setup';
+      }
+
+      if (authed &&
+          !needsPhoneNumber(auth.user) &&
+          loc == '/phone-setup') {
+        // Page navigates via resolvePostAuthRoute (driver KYC / home).
+        return null;
       }
 
       if (authed && (loc == '/login' || loc == '/otp')) {
@@ -116,6 +136,10 @@ GoRouter createAppRouter(AuthBloc authBloc) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const PhoneLoginPage(),
+      ),
+      GoRoute(
+        path: '/phone-setup',
+        builder: (context, state) => const PhoneSetupPage(),
       ),
       GoRoute(
         path: '/admin',
@@ -158,7 +182,20 @@ GoRouter createAppRouter(AuthBloc authBloc) {
             routes: [
               GoRoute(
                 path: '/trips',
-                builder: (context, state) => const TripHistoryPage(),
+                builder: (context, state) {
+                  final tab = state.uri.queryParameters['tab'];
+                  final rideId = state.uri.queryParameters['ride'];
+                  final initial = switch (tab) {
+                    'upcoming' => 1,
+                    'cancelled' => 2,
+                    _ => 0,
+                  };
+                  return TripHistoryPage(
+                    key: ValueKey('trips-$tab-$rideId'),
+                    initialTabIndex: initial,
+                    highlightRideId: int.tryParse(rideId ?? ''),
+                  );
+                },
               ),
             ],
           ),
@@ -300,11 +337,18 @@ GoRouter createAppRouter(AuthBloc authBloc) {
       ),
       GoRoute(
         path: '/driver/history',
-        builder: (context, state) => BlocProvider(
-          create: (_) => passengerGetIt<HistoryBloc>()
-            ..add(const HistoryLoadRequested()),
-          child: const DriverRideHistoryPage(),
-        ),
+        builder: (context, state) {
+          final tab = state.uri.queryParameters['tab'];
+          final initial = tab == 'upcoming' ? 1 : 0;
+          return BlocProvider(
+            create: (_) => passengerGetIt<HistoryBloc>()
+              ..add(const HistoryLoadRequested()),
+            child: DriverRideHistoryPage(
+              key: ValueKey('driver-history-$tab'),
+              initialTabIndex: initial,
+            ),
+          );
+        },
       ),
       GoRoute(
         path: '/driver/ratings',

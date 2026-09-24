@@ -35,6 +35,9 @@ abstract class DriverRepository {
 
   Future<Either<String, List<RideModel>>> getPendingRides();
 
+  /// Future scheduled rides (open or reserved for this driver).
+  Future<Either<String, List<RideModel>>> getPlannedRides();
+
   Future<Either<String, RideModel?>> getActiveRide();
 
   Future<Either<String, List<RideModel>>> getRideHistory({int page = 1});

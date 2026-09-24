@@ -96,6 +96,15 @@ if ($method === 'POST' && $path === '/rides') {
     }
     $matchMode = isset($body['match_mode']) ? $body['match_mode'] : 'instant';
     $isBidding = (!empty($body['is_bidding']) || $matchMode === 'bidding') ? 1 : 0;
+    $scheduledAt = null;
+    if (!empty($body['scheduled_at'])) {
+        $ts = strtotime((string) $body['scheduled_at']);
+        if ($ts === false || $ts <= time()) {
+            tg_json(array('message' => 'scheduled_at must be a future datetime.'), 422);
+        }
+        $scheduledAt = gmdate('c', $ts);
+        $isBidding = 0; // scheduled rides are not bidding
+    }
     $ref = 'TG-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));
     $now = tg_now();
     $pdo = tg_db();
@@ -104,8 +113,8 @@ if ($method === 'POST' && $path === '/rides') {
             reference, passenger_id, status, pickup_latitude, pickup_longitude, pickup_address,
             dropoff_latitude, dropoff_longitude, dropoff_address, estimated_fare, offered_fare,
             minimum_fare, is_bidding, vehicle_type, product_mode, payment_method, passenger_note,
-            created_at, updated_at
-         ) VALUES (?, ?, \'pending\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            scheduled_at, created_at, updated_at
+         ) VALUES (?, ?, \'pending\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )->execute(array(
         $ref,
         (int) $user['id'],
@@ -123,12 +132,14 @@ if ($method === 'POST' && $path === '/rides') {
         isset($body['product_mode']) ? $body['product_mode'] : 'taxi',
         isset($body['payment_method']) ? $body['payment_method'] : 'cash',
         isset($body['passenger_note']) ? $body['passenger_note'] : null,
+        $scheduledAt,
         $now,
         $now,
     ));
     $id = (int) $pdo->lastInsertId();
     $assigned = false;
-    if (!$isBidding) {
+    // Instant assign only for non-scheduled, non-bidding rides.
+    if (!$isBidding && $scheduledAt === null) {
         $drivers = $pdo->query('SELECT user_id, latitude, longitude FROM drivers WHERE is_online = 1')->fetchAll();
         $best = null;
         $bestDist = 1e9;
@@ -154,7 +165,7 @@ if ($method === 'POST' && $path === '/rides') {
     $stmt = $pdo->prepare('SELECT * FROM rides WHERE id = ?');
     $stmt->execute(array($id));
     tg_json(array(
-        'message' => 'Ride created.',
+        'message' => $scheduledAt ? 'Ride scheduled.' : 'Ride created.',
         'ride' => tg_ride_row_to_api($stmt->fetch(), $pdo),
         'instant_assigned' => $assigned,
     ), 201);
@@ -178,11 +189,37 @@ if ($method === 'GET' && preg_match('#^/rides/(\d+)$#', $path, $m)) {
 if ($method === 'GET' && $path === '/driver/rides/pending') {
     tg_require_user();
     $pdo = tg_db();
+    $now = tg_now();
+    // Instant jobs only (not future-scheduled).
     $rows = $pdo->query(
-        'SELECT * FROM rides WHERE status = \'pending\' AND driver_id IS NULL ORDER BY id DESC LIMIT 20'
+        "SELECT * FROM rides
+         WHERE status = 'pending' AND driver_id IS NULL
+           AND (scheduled_at IS NULL OR scheduled_at <= '$now')
+         ORDER BY id DESC LIMIT 20"
     )->fetchAll();
     $data = array();
     foreach ($rows as $row) {
+        $data[] = tg_ride_row_to_api($row, $pdo);
+    }
+    tg_json(array('data' => $data));
+}
+
+if ($method === 'GET' && $path === '/driver/rides/planned') {
+    $user = tg_require_user();
+    $pdo = tg_db();
+    $now = tg_now();
+    $uid = (int) $user['id'];
+    // Open future jobs + ones already reserved by this driver.
+    $stmt = $pdo->prepare(
+        "SELECT * FROM rides
+         WHERE status NOT IN ('completed','cancelled_by_passenger','cancelled_by_driver','expired')
+           AND scheduled_at IS NOT NULL AND scheduled_at > ?
+           AND (driver_id IS NULL OR driver_id = ?)
+         ORDER BY scheduled_at ASC LIMIT 40"
+    );
+    $stmt->execute(array($now, $uid));
+    $data = array();
+    foreach ($stmt->fetchAll() as $row) {
         $data[] = tg_ride_row_to_api($row, $pdo);
     }
     tg_json(array('data' => $data));
@@ -214,9 +251,17 @@ if ($method === 'POST' && preg_match('#^/driver/rides/(\d+)/accept$#', $path, $m
         tg_json(array('message' => 'Ride is no longer available.'), 422);
     }
     $now = tg_now();
-    $pdo->prepare(
-        'UPDATE rides SET driver_id = ?, status = \'driver_arriving\', driver_assigned_at = ?, updated_at = ? WHERE id = ? AND status = \'pending\''
-    )->execute(array($user['id'], $now, $now, $rideId));
+    $isFutureScheduled = !empty($ride['scheduled_at']) && strtotime($ride['scheduled_at']) > time();
+    if ($isFutureScheduled) {
+        // Reserve for this driver; trip starts when scheduled_at arrives.
+        $pdo->prepare(
+            'UPDATE rides SET driver_id = ?, status = \'driver_assigned\', driver_assigned_at = ?, updated_at = ? WHERE id = ? AND status = \'pending\''
+        )->execute(array($user['id'], $now, $now, $rideId));
+    } else {
+        $pdo->prepare(
+            'UPDATE rides SET driver_id = ?, status = \'driver_arriving\', driver_assigned_at = ?, updated_at = ? WHERE id = ? AND status = \'pending\''
+        )->execute(array($user['id'], $now, $now, $rideId));
+    }
     $stmt->execute(array($rideId));
     tg_json(array('message' => 'Ride accepted.', 'ride' => tg_ride_row_to_api($stmt->fetch(), $pdo)));
 }
@@ -274,11 +319,15 @@ if ($method === 'GET' && $path === '/driver/rides/history') {
 if ($method === 'GET' && $path === '/rides/active') {
     $user = tg_require_user();
     $pdo = tg_db();
+    $now = tg_now();
     $stmt = $pdo->prepare(
-        'SELECT * FROM rides WHERE passenger_id = ? AND status NOT IN (\'completed\',\'cancelled_by_passenger\',\'cancelled_by_driver\',\'expired\')
-         ORDER BY id DESC LIMIT 1'
+        "SELECT * FROM rides
+         WHERE passenger_id = ?
+           AND status NOT IN ('completed','cancelled_by_passenger','cancelled_by_driver','expired')
+           AND (scheduled_at IS NULL OR scheduled_at <= ?)
+         ORDER BY id DESC LIMIT 1"
     );
-    $stmt->execute(array($user['id']));
+    $stmt->execute(array($user['id'], $now));
     $ride = $stmt->fetch();
     tg_json(array('data' => $ride ? tg_ride_row_to_api($ride, $pdo) : null));
 }

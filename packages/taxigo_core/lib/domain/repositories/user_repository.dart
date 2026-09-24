@@ -9,6 +9,7 @@ abstract class UserRepository {
     String? name,
     String? email,
     String? avatar,
+    String? phone,
   });
 
   Future<Either<String, UserModel>> updateLocale(String locale);

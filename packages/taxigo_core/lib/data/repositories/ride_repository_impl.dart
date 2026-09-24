@@ -173,8 +173,9 @@ class RideRepositoryImpl implements RideRepository {
     if (await _isLocal) {
       final user = await _authRepository.getStoredLocalUser();
       if (AppReviewSeed.isReviewPhone(user?.phone)) {
-        return Right(AppReviewSeed.rideHistory());
+        _demo.ensureReviewHistorySeeded();
       }
+      // Always return live demo store so just-scheduled trips appear in Upcoming.
       return Right(_demo.history());
     }
     try {

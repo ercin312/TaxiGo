@@ -112,6 +112,15 @@ class AuthLogoutRequested extends AuthEvent {
   const AuthLogoutRequested();
 }
 
+class AuthUserUpdated extends AuthEvent {
+  const AuthUserUpdated(this.user);
+
+  final UserModel user;
+
+  @override
+  List<Object?> get props => [user];
+}
+
 // State
 
 enum AuthStatus {
@@ -206,6 +215,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthReviewLoginRequested>(_onReviewLogin);
     on<AuthSocialLoginRequested>(_onSocialLogin);
     on<AuthLogoutRequested>(_onLogout);
+    on<AuthUserUpdated>(_onUserUpdated);
   }
 
   final AuthRepository _authRepository;
@@ -645,6 +655,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       clearUser: true,
       clearToken: true,
       clearOtpDebug: true,
+    ));
+  }
+
+  Future<void> _onUserUpdated(
+    AuthUserUpdated event,
+    Emitter<AuthState> emit,
+  ) async {
+    await _authRepository.saveLocalUser(event.user);
+    emit(state.copyWith(
+      status: AuthStatus.authenticated,
+      user: event.user,
     ));
   }
 }

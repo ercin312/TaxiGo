@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:taxigo_core/taxigo_core.dart';
 
+import '../../../../core/app_helpers.dart';
 import '../../../app_mode/application/app_mode_cubit.dart';
 import '../../application/driver_home_bloc.dart';
 import '../widgets/incoming_ride_request_sheet.dart';
@@ -25,7 +26,9 @@ class _DriverHomePageState extends State<DriverHomePage> {
 
     return BlocConsumer<DriverHomeBloc, DriverHomeState>(
       listener: (context, state) {
-        if (state is DriverHomeNotApproved) {
+        if (state is DriverHomeNeedsRegistration) {
+          context.go('/driver/register');
+        } else if (state is DriverHomeNotApproved) {
           context.go('/driver/pending');
         } else if (state is DriverHomeReady && state.activeRide != null) {
           context.push('/driver/active-ride', extra: state.activeRide!.id);
@@ -50,12 +53,32 @@ class _DriverHomePageState extends State<DriverHomePage> {
 
         if (state is DriverHomeFailure) {
           return Scaffold(
+            appBar: AppBar(
+              title: Text(l10n.driverMode),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    takePendingIntendedRole();
+                    context.read<AuthBloc>().add(const AuthLogoutRequested());
+                    context.go('/login');
+                  },
+                  child: Text(l10n.signOut),
+                ),
+              ],
+            ),
             body: ErrorView(
               message: state.message,
               onRetry: () {
                 context.read<DriverHomeBloc>().add(const DriverHomeStarted());
               },
             ),
+          );
+        }
+
+        if (state is DriverHomeNeedsRegistration ||
+            state is DriverHomeNotApproved) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
           );
         }
 
@@ -96,7 +119,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
           ),
           drawer: _DriverDrawer(
             onEarnings: () => context.push('/driver/earnings'),
-            onHistory: () => context.push('/driver/history'),
+            onHistory: () => context.push('/driver/history?tab=upcoming'),
             onRatings: () => context.push('/driver/ratings'),
           ),
           body: Stack(

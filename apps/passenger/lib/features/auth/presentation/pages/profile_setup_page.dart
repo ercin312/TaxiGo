@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:taxigo_core/taxigo_core.dart';
 
-import '../../../../app/router.dart';
+import '../../../../core/app_helpers.dart';
 import '../../../../di/locator.dart';
 import '../../application/auth_bloc.dart';
 
@@ -39,8 +39,8 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
         child: BlocConsumer<PassengerAuthBloc, PassengerAuthState>(
           listener: (context, state) {
             if (state is PassengerAuthSuccess) {
-              context.read<AuthBloc>().add(const AuthCheckRequested());
-              resolveHomeRoute().then((route) {
+              context.read<AuthBloc>().add(AuthUserUpdated(state.user));
+              resolvePostAuthRoute(state.user).then((route) {
                 if (context.mounted) context.go(route);
               });
             } else if (state is PassengerAuthFailure) {

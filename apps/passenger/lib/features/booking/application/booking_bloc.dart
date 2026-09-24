@@ -412,11 +412,16 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
         status: BookingStatus.failure,
         errorMessage: error,
       )),
-      (ride) => emit(state.copyWith(
-        status: BookingStatus.booked,
-        createdRide: ride,
-        scheduledAt: scheduledAt,
-      )),
+      (ride) {
+        final withSchedule = scheduledAt != null && ride.scheduledAt == null
+            ? ride.copyWith(scheduledAt: scheduledAt)
+            : ride;
+        emit(state.copyWith(
+          status: BookingStatus.booked,
+          createdRide: withSchedule,
+          scheduledAt: scheduledAt,
+        ));
+      },
     );
   }
 }

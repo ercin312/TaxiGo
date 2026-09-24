@@ -112,11 +112,13 @@ class _ConfirmBookingPageState extends State<ConfirmBookingPage> {
     return BlocConsumer<BookingBloc, BookingState>(
       listener: (context, state) {
         if (state.status == BookingStatus.booked && state.createdRide != null) {
-          if (state.createdRide!.scheduledAt != null) {
+          if (state.createdRide!.scheduledAt != null ||
+              state.scheduledAt != null) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(l10n.rideScheduled)),
             );
-            context.go('/trips');
+            final rideId = state.createdRide!.id;
+            context.go('/trips?tab=upcoming&ride=$rideId');
           } else if (state.createdRide!.isBidding) {
             context.go(
               '/bidding/${state.createdRide!.id}',

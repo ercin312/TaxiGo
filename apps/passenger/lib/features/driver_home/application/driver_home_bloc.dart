@@ -42,7 +42,17 @@ class DriverHomeBloc extends Bloc<DriverHomeEvent, DriverHomeState> {
 
     final profileResult = await _driverRepository.getProfile();
     await profileResult.fold(
-      (message) async => emit(DriverHomeFailure(message)),
+      (message) async {
+        final m = message.toLowerCase();
+        if (m.contains('not found') ||
+            m.contains('bulunamad') ||
+            m.contains('no driver') ||
+            m.contains('404')) {
+          emit(const DriverHomeNeedsRegistration());
+        } else {
+          emit(DriverHomeFailure(message));
+        }
+      },
       (driver) async {
         if (!driver.isApproved) {
           emit(DriverHomeNotApproved(driver));

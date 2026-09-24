@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../firebase/firebase_service.dart';
@@ -55,11 +56,16 @@ class SocialAuthService {
   SocialAuthService({
     FirebaseAuth? firebaseAuth,
     GoogleSignIn? googleSignIn,
+    SharedPreferences? prefs,
   })  : _auth = firebaseAuth ?? FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? _createGoogleSignIn();
+        _googleSignIn = googleSignIn ?? _createGoogleSignIn(),
+        _prefs = prefs;
 
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
+  final SharedPreferences? _prefs;
+
+  static const _appleProfilePrefix = 'taxigo_apple_profile_';
 
   static GoogleSignIn _createGoogleSignIn() {
     const iosClientId = String.fromEnvironment(
@@ -181,10 +187,34 @@ class SocialAuthService {
         );
       }
 
-      final displayName = [
-        appleCredential.givenName,
-        appleCredential.familyName,
-      ].whereType<String>().where((p) => p.trim().isNotEmpty).join(' ');
+      final appleUserId = appleCredential.userIdentifier ?? '';
+      final cached = await _loadAppleProfile(appleUserId);
+      final jwtClaims = _decodeJwtPayload(idToken);
+
+      // Apple only returns name/email on the FIRST authorization.
+      final given = _nonEmpty(appleCredential.givenName);
+      final family = _nonEmpty(appleCredential.familyName);
+      final freshName = [
+        if (given != null) given,
+        if (family != null) family,
+      ].join(' ').trim();
+
+      final resolvedName = _nonEmpty(freshName) ??
+          _nonEmpty(cached?['name']) ??
+          _nonEmpty(jwtClaims?['name']?.toString());
+
+      final resolvedEmail = _nonEmpty(appleCredential.email) ??
+          _nonEmpty(cached?['email']) ??
+          _nonEmpty(jwtClaims?['email']?.toString());
+
+      if (appleUserId.isNotEmpty &&
+          (resolvedName != null || resolvedEmail != null)) {
+        await _saveAppleProfile(
+          appleUserId,
+          name: resolvedName ?? cached?['name'],
+          email: resolvedEmail ?? cached?['email'],
+        );
+      }
 
       try {
         final oauthCredential = OAuthProvider('apple.com').credential(
@@ -192,19 +222,31 @@ class SocialAuthService {
           rawNonce: rawNonce,
         );
         final userCred = await _auth.signInWithCredential(oauthCredential);
+        final user = userCred.user;
+
+        // Persist display name on Firebase so later sessions keep it.
+        if (user != null &&
+            resolvedName != null &&
+            (_nonEmpty(user.displayName) == null)) {
+          try {
+            await user.updateDisplayName(resolvedName);
+            await user.reload();
+          } catch (_) {}
+        }
+
         return _fromFirebaseUser(
-          userCred.user,
+          _auth.currentUser ?? user,
           provider: SocialAuthProvider.apple,
-          fallbackName: displayName.isEmpty ? null : displayName,
-          fallbackEmail: appleCredential.email,
+          fallbackName: resolvedName,
+          fallbackEmail: resolvedEmail,
         );
       } on FirebaseAuthException {
         return SocialAuthResult(
           provider: SocialAuthProvider.apple,
           idToken: idToken,
-          uid: appleCredential.userIdentifier ?? idToken,
-          email: appleCredential.email,
-          name: displayName.isEmpty ? 'Apple Traveler' : displayName,
+          uid: appleUserId.isNotEmpty ? appleUserId : idToken,
+          email: resolvedEmail,
+          name: resolvedName ?? 'Apple Traveler',
           isFirebaseIdToken: false,
         );
       }
@@ -274,16 +316,83 @@ class SocialAuthService {
       throw SocialAuthUnavailable('Could not get identity token.');
     }
 
+    final email = _nonEmpty(user.email) ?? _nonEmpty(fallbackEmail);
+    final name = _nonEmpty(user.displayName) ??
+        _nonEmpty(fallbackName) ??
+        (email != null ? email.split('@').first : null);
+
     return SocialAuthResult(
       provider: provider,
       idToken: token,
       uid: user.uid,
-      email: user.email ?? fallbackEmail,
-      name: user.displayName ?? fallbackName,
+      email: email,
+      name: name,
       avatar: user.photoURL ?? fallbackAvatar,
       phone: user.phoneNumber,
       isFirebaseIdToken: true,
     );
+  }
+
+  Future<Map<String, String>?> _loadAppleProfile(String userId) async {
+    if (userId.isEmpty || _prefs == null) return null;
+    final raw = _prefs.getString('$_appleProfilePrefix$userId');
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return null;
+      final name = _nonEmpty(decoded['name']?.toString());
+      final email = _nonEmpty(decoded['email']?.toString());
+      if (name == null && email == null) return null;
+      return {
+        if (name != null) 'name': name,
+        if (email != null) 'email': email,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _saveAppleProfile(
+    String userId, {
+    String? name,
+    String? email,
+  }) async {
+    if (userId.isEmpty || _prefs == null) return;
+    final payload = <String, String>{
+      if (_nonEmpty(name) != null) 'name': name!.trim(),
+      if (_nonEmpty(email) != null) 'email': email!.trim(),
+    };
+    if (payload.isEmpty) return;
+    // Merge with existing so we never wipe a previously saved field.
+    final existing = await _loadAppleProfile(userId) ?? {};
+    final merged = {...existing, ...payload};
+    await _prefs.setString('$_appleProfilePrefix$userId', jsonEncode(merged));
+  }
+
+  static String? _nonEmpty(String? value) {
+    final v = value?.trim();
+    if (v == null || v.isEmpty) return null;
+    return v;
+  }
+
+  /// Apple identity token often still carries `email` on later sign-ins.
+  static Map<String, dynamic>? _decodeJwtPayload(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length < 2) return null;
+      var payload = parts[1].replaceAll('-', '+').replaceAll('_', '/');
+      switch (payload.length % 4) {
+        case 2:
+          payload += '==';
+        case 3:
+          payload += '=';
+      }
+      final decoded = utf8.decode(base64.decode(payload));
+      final json = jsonDecode(decoded);
+      return json is Map<String, dynamic> ? json : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   static String _generateNonce([int length = 32]) {

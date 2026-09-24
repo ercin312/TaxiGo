@@ -44,6 +44,7 @@ class UserRepositoryImpl implements UserRepository {
     String? name,
     String? email,
     String? avatar,
+    String? phone,
   }) async {
     if (await _isLocal) {
       final current = await _authRepository.getStoredLocalUser();
@@ -52,6 +53,7 @@ class UserRepositoryImpl implements UserRepository {
         name: name ?? current.name,
         email: email ?? current.email,
         avatar: avatar ?? current.avatar,
+        phone: phone ?? current.phone,
       );
       await _authRepository.saveLocalUser(updated);
       return Right(updated);
@@ -63,6 +65,7 @@ class UserRepositoryImpl implements UserRepository {
           if (name != null) 'name': name,
           if (email != null) 'email': email,
           if (avatar != null) 'avatar': avatar,
+          if (phone != null) 'phone': phone,
         },
       );
       final data = response.data;

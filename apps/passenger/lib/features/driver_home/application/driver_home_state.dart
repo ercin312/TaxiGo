@@ -24,6 +24,10 @@ class DriverHomeNotApproved extends DriverHomeState {
   List<Object?> get props => [driver];
 }
 
+class DriverHomeNeedsRegistration extends DriverHomeState {
+  const DriverHomeNeedsRegistration();
+}
+
 class DriverHomeReady extends DriverHomeState {
   const DriverHomeReady({
     required this.driver,

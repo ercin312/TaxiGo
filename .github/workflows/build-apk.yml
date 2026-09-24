@@ -36,6 +36,29 @@ jobs:
           cd ../../apps/passenger
           flutter pub get
 
+      - name: Configure Play upload signing
+        working-directory: apps/passenger/android
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            echo "No ANDROID_KEYSTORE_BASE64; release build will use the debug key."
+            exit 0
+          fi
+          mkdir -p keystore
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > keystore/upload-keystore.jks
+          cat > key.properties <<EOF
+          storePassword=${ANDROID_STORE_PASSWORD}
+          keyPassword=${ANDROID_KEY_PASSWORD}
+          keyAlias=${ANDROID_KEY_ALIAS}
+          storeFile=../keystore/upload-keystore.jks
+          EOF
+          echo "Upload keystore configured."
+
       - name: Analyze
         run: flutter analyze lib
 
@@ -44,9 +67,21 @@ jobs:
           flutter build apk --release \
             --dart-define=TAXIGO_API_BASE_URL=${TAXIGO_API_BASE_URL}
 
+      - name: Build release AAB (Play closed testing)
+        run: |
+          flutter build appbundle --release \
+            --dart-define=TAXIGO_API_BASE_URL=${TAXIGO_API_BASE_URL}
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: taxigo-apk
           path: apps/passenger/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: taxigo-aab
+          path: apps/passenger/build/app/outputs/bundle/release/*.aab
           retention-days: 14
